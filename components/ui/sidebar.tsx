@@ -144,7 +144,7 @@ const Sidebar = ({
 
         <button
           onClick={handleApplyFilters}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-4 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" // Enhanced button style
+          className="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2.5 px-4 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500" // Enhanced button style
         >
           Apply Filters
         </button>

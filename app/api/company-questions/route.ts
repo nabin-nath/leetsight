@@ -1,55 +1,59 @@
 // /app/api/company-questions/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { getCollection, CompanyQuestionDocument } from '@/lib/mongodb'; // Adjust path
-import { SortDirection } from 'mongodb';
-
-const COMPANY_QUESTIONS_COLLECTION_NAME = process.env.COMPANY_QUESTIONS_COLLECTION || "company_questions";
+import { NextRequest, NextResponse } from "next/server";
+// Make sure to import getPaginatedCompanyQuestions from your lib/mongodb
+import { getPaginatedCompanyQuestions } from "@/lib/mongodb";
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const company = searchParams.get('company');
-    let role = searchParams.get('role');
+    const company = searchParams.get("company");
+    const role = searchParams.get("role"); // This will be "All Roles", "N/A", or a specific role
+    const timePeriod = searchParams.get("timePeriod");
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "10", 10); // Default limit for questions
 
-    if (!company) {
-      return NextResponse.json({ error: 'Company parameter is required' }, { status: 400 });
+    if (!company || company === "All Companies") {
+      // Require a specific company
+      return NextResponse.json(
+        { error: "Specific company parameter is required" },
+        { status: 400 }
+      );
     }
 
-    const query: any = { company_name: company };
+    // Role can be null if "All Roles" is implicitly handled by backend
+    const roleFilter = role && role !== "All Roles" ? role : null;
+    const timePeriodFilter =
+      timePeriod && timePeriod !== "All Time" ? timePeriod : null; // <-- Use this
 
-    if (role && role !== "All Roles" && role !== "Unspecified Role (N/A)") {
-      query.role_name = role;
-    } else if (role === "Unspecified Role (N/A)") {
-      query.role_name = "N/A";
+    // getPaginatedCompanyQuestions now returns an array, but for this API,
+    // we expect one primary result based on the filters.
+    const result = await getPaginatedCompanyQuestions(
+      company,
+      roleFilter,
+      timePeriodFilter,
+      page,
+      limit
+    );
+
+    if (result && result.length > 0) {
+      // If roleFilter was null (meaning "All Roles"), result[0] contains combined paginated questions.
+      // If a specific role was filtered, result[0] contains paginated questions for that role.
+      return NextResponse.json(result[0]); // Send the first (and likely only) element
+    } else {
+      // Handle case where no questions match (even if company/role exists)
+      return NextResponse.json({
+        questions: [],
+        totalQuestions: 0,
+        currentPage: page,
+        totalPages: 1,
+        roleName: role || "All Roles",
+        companyName: company,
+      });
     }
-    // If role is "All Roles", no role_name filter is applied to query
-
-    const companyQuestionsCollection = await getCollection<CompanyQuestionDocument>(COMPANY_QUESTIONS_COLLECTION_NAME);
-    // Fetches all role documents for the company (or the specific role if filtered)
-    // Each document contains an array of questions.
-    // Server-side pagination of the inner 'questions' array is complex with a single find.
-    // For now, this returns all questions for the matched company/role criteria.
-    const companyData = await companyQuestionsCollection
-                            .find(query)
-                            .sort({ role_name: 1 as SortDirection }) // Sort roles alphabetically
-                            .toArray();
-
-    // Sort questions within each role document by lastSeenAt descending
-    companyData.forEach(roleDoc => {
-        if (roleDoc.questions && Array.isArray(roleDoc.questions)) {
-            roleDoc.questions.sort((a, b) => {
-                const dateA = a.lastSeenAt instanceof Date ? a.lastSeenAt.getTime() : new Date(a.lastSeenAt).getTime();
-                const dateB = b.lastSeenAt instanceof Date ? b.lastSeenAt.getTime() : new Date(b.lastSeenAt).getTime();
-                return dateB - dateA; // Descending
-            });
-        }
-    });
-
-
-    return NextResponse.json(companyData);
   } catch (error) {
     console.error("Error fetching company questions:", error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
+    const errorMessage =
+      error instanceof Error ? error.message : "Internal Server Error";
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

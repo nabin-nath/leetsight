@@ -79,7 +79,7 @@ const QuestionCard = ({
         )}
       </div>
 
-      <p className="mt-2 text-sm text-gray-600">{description}</p>
+      <p className="mt-2 text-md text-gray-600">{description}</p>
 
       {expanded && extractedQuestions.length > 0 && (
         <div className="mt-4 space-y-4 border-t border-gray-200 pt-4">
@@ -88,7 +88,7 @@ const QuestionCard = ({
               key={index}
               className="pb-2 mb-2 border-b border-gray-100 last:border-b-0"
             >
-              <h4 className="text-sm font-semibold text-gray-800 mb-1">
+              <h4 className="text-md font-semibold text-gray-800 mb-1">
                 Question {index + 1}:
               </h4>
               <p className="text-sm text-gray-700 whitespace-pre-wrap mb-2">
@@ -114,12 +114,12 @@ const QuestionCard = ({
                   )}
                   {q.refined_role !== "N/A" && (
                     <span>
-                      Role Context: {q.refined_role}
+                      Role: {q.refined_role}
                       <br />
                     </span>
                   )}
                   {q.refined_company !== "N/A" && (
-                    <span>Company Context: {q.refined_company}</span>
+                    <span>Company: {q.refined_company}</span>
                   )}
                 </div>
               )}
@@ -129,7 +129,7 @@ const QuestionCard = ({
                 (sq) => sq.similarity_score > 0.65
               ).length > 0 && (
                 <div className="mt-1">
-                  <p className="text-xs font-medium text-gray-600 mb-1">
+                  <p className="text-sm font-medium text-gray-600 mb-1">
                     Similar Platform Questions
                   </p>
                   <ul className="list-disc list-inside ml-2 space-y-1">
@@ -150,7 +150,7 @@ const QuestionCard = ({
                             <ExternalLink className="ml-1 h-3 w-3" />
                           </Link>
                           <span className="text-gray-500 ml-1">
-                            (Score: {sq.similarity_score.toFixed(2)})
+                            (Similarity: {(parseFloat(sq.similarity_score.toFixed(2)) * 100).toFixed(0)}%)
                           </span>
                         </li>
                       ))}
@@ -166,7 +166,7 @@ const QuestionCard = ({
         <span className="text-xs text-gray-500">{date || "Date N/A"}</span>
         <div className="flex items-center gap-2">
           <button
-            className="text-indigo-600 hover:text-indigo-800 border border-indigo-600 hover:border-indigo-800 px-3 py-1.5 rounded-md flex items-center text-sm font-medium transition-colors"
+            className="text-gray-600 hover:text-gray-800 border border-gray-600 hover:border-gray-800 px-3 py-1.5 rounded-md flex items-center text-sm font-medium transition-colors"
             onClick={toggleExpand}
           >
             {expanded ? "Hide Details" : "Show Details"}
@@ -178,8 +178,9 @@ const QuestionCard = ({
           </button>
           <Link
             href={`/post/${topicId}`}
+            target="_blank"
             passHref
-            className="text-white bg-indigo-600 hover:bg-indigo-700 border border-transparent px-3 py-1.5 rounded-md flex items-center text-sm font-medium transition-colors"
+            className="text-white bg-gray-600 hover:bg-gray-700 border border-transparent px-3 py-1.5 rounded-md flex items-center text-sm font-medium transition-colors"
           >
             View Full Post
             <ExternalLink className="ml-1 h-4 w-4" />
