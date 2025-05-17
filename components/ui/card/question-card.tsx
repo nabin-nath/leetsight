@@ -189,7 +189,7 @@ const QuestionCard = ({
         <span className="text-xs text-gray-500">{date || "Date N/A"}</span>
         <div className="flex items-center gap-2">
           <button
-            className="text-gray-600 hover:text-gray-800 border border-gray-600 hover:border-gray-800 px-3 py-1.5 rounded-md flex items-center text-sm font-medium transition-colors"
+            className="text-white bg-gray-600 hover:bg-gray-700 border border-transparent px-3 py-1.5 rounded-md flex items-center text-sm font-medium transition-colors"
             onClick={toggleExpand}
           >
             {expanded ? "Hide Details" : "Show Details"}
@@ -199,15 +199,6 @@ const QuestionCard = ({
               <ChevronDown className="ml-1 h-4 w-4" />
             )}
           </button>
-          <Link
-            href={`/post/${topicId}`}
-            target="_blank"
-            passHref
-            className="text-white bg-gray-600 hover:bg-gray-700 border border-transparent px-3 py-1.5 rounded-md flex items-center text-sm font-medium transition-colors"
-          >
-            View Full Post
-            <ExternalLink className="ml-1 h-4 w-4" />
-          </Link>
         </div>
       </div>
     </div>
