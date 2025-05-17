@@ -52,7 +52,7 @@ const formatLeetCodeLink = (id: number | string) =>
 export default function PostDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const topicIdFromUrl = params?.topicId as string;
+  const topicIdFromUrl = params?.topicid as string;
 
   const [post, setPost] = useState<ProcessedPost | null>(null);
   const [isLoading, setIsLoading] = useState(true);

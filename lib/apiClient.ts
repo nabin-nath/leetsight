@@ -2,10 +2,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { getSession } from "next-auth/react";
 
 const apiClient = axios.create({
-  baseURL:
-    process.env.NEXT_PUBLIC_FASTAPI_BASE_URL ||
-    //  "http://localhost:8000/api/v1", // Default to localhost for local development
-    "https://api.leetsight.com/api/v1", // Your FastAPI base URL
+  baseURL: process.env.NEXT_PUBLIC_FASTAPI_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
