@@ -33,7 +33,7 @@ const Sidebar = ({
 
   const handleCompanyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newCompany = e.target.value;
-    console.log("Sidebar: handleCompanyChange - newCompany:", newCompany);
+    // console.log("Sidebar: handleCompanyChange - newCompany:", newCompany);
     setSelectedCompany(newCompany); // Update local state immediately
     // When company changes, the role should reset in the sidebar's view,
     // and the parent should be notified to fetch new roles.
@@ -42,11 +42,11 @@ const Sidebar = ({
   };
 
   const handleApplyFilters = () => {
-    console.log("Sidebar: handleApplyFilters clicked. Current selections:", {
-      selectedCompany,
-      selectedRole,
-      selectedTimePeriod,
-    });
+    // console.log("Sidebar: handleApplyFilters clicked. Current selections:", {
+    //   selectedCompany,
+    //   selectedRole,
+    //   selectedTimePeriod,
+    // });
     onFiltersChange({
       company: selectedCompany,
       role: selectedRole,

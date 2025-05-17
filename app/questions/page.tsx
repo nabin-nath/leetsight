@@ -4,17 +4,11 @@
 import Navbar from "@/components/ui/navbar";
 import Sidebar from "@/components/ui/sidebar";
 import QuestionCard from "@/components/ui/card/question-card"; // Assuming QuestionCard is suitable
+import PrimaryQuestionCard from "@/components/ui/card/question"; // Assuming this is a different card type
 import PaginationRounded from "@/components/ui/pagination";
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import {
-  ExternalLink,
-  Briefcase,
-  Building,
-  Tag as TagIcon,
-} from "lucide-react";
+import apiClient from "@/lib/apiClient";
 
-// Interfaces
 interface SimilarQuestion {
   source: string;
   similarity_score: number;
@@ -51,11 +45,11 @@ interface CompanyQuestionFromAPI {
 }
 interface CompanyQuestionsApiResponse {
   questions: CompanyQuestionFromAPI[];
-  totalQuestions: number;
-  currentPage: number;
-  totalPages: number;
-  roleName?: string;
-  companyName?: string;
+  total_questions_for_role: number;
+  current_page: number;
+  total_pages: number;
+  role_name?: string;
+  company_name?: string;
 }
 interface FiltersState {
   company: string;
@@ -94,9 +88,10 @@ export default function QuestionsByCompanyPage() {
 
   const fetchCompanies = useCallback(async () => {
     try {
-      const res = await fetch("/api/companies");
-      if (!res.ok) throw new Error("Failed to fetch companies");
-      const data = await res.json();
+      const res = await apiClient.get("/company-questions/distinct_companies");
+      if (res.status < 200 || res.status >= 300)
+        throw new Error("Failed to fetch companies");
+      const data = res.data;
       setAvailableCompanies(["All Companies", ...data.sort()]);
     } catch (err) {
       console.error("Error fetching companies:", err);
@@ -113,16 +108,18 @@ export default function QuestionsByCompanyPage() {
     setAvailableRoles(["Loading..."]); // Provide immediate feedback
 
     try {
-      const res = await fetch(
-        `/api/roles?company=${encodeURIComponent(companyName)}`
+      const res = await apiClient.get(
+        `/company-questions/roles_by_company/?company=${encodeURIComponent(
+          companyName
+        )}`
       );
-      if (!res.ok) {
-        const errData = await res.json();
+      if (res.status < 200 || res.status >= 300) {
+        const errData = res.data;
         throw new Error(
           errData.error || `Failed to fetch roles for ${companyName}`
         );
       }
-      const data: string[] = await res.json();
+      const data: string[] = res.data;
       setAvailableRoles(["All Roles", ...data.sort()]);
     } catch (err) {
       console.error(`Error fetching roles for ${companyName}:`, err);
@@ -133,7 +130,7 @@ export default function QuestionsByCompanyPage() {
   }, []);
 
   const fetchCompanyQuestions = useCallback(
-    async (page: number, filters: FiltersState) => {
+    async (page = 1, filters: FiltersState) => {
       if (filters.company === "All Companies" || !filters.company) {
         setQuestionsOnPage([]);
         setTotalPages(1);
@@ -147,7 +144,7 @@ export default function QuestionsByCompanyPage() {
       setIsLoading(true);
       setError(null);
       try {
-        let url = `/api/company-questions?company=${encodeURIComponent(
+        let url = `/company-questions/paginated/?company=${encodeURIComponent(
           filters.company
         )}&page=${page}&limit=${QUESTIONS_PER_PAGE}`;
         if (filters.role && filters.role !== "All Roles") {
@@ -155,24 +152,24 @@ export default function QuestionsByCompanyPage() {
         }
         // Time period not directly used by this API, but kept in activeFilters for Sidebar
         if (filters.timePeriod && filters.timePeriod !== "All Time") {
-          url += `&timePeriod=${encodeURIComponent(filters.timePeriod)}`;
+          url += `&time_period=${encodeURIComponent(filters.timePeriod)}`;
         }
-        const res = await fetch(url);
-        if (!res.ok) {
-          const errData = await res.json();
+        const res = await apiClient.get(url);
+        if (res.status < 200 || res.status >= 300) {
+          const errData = res.data;
           throw new Error(
             errData.error || `Failed to fetch questions for ${filters.company}`
           );
         }
-        const data: CompanyQuestionsApiResponse = await res.json();
+        const data: CompanyQuestionsApiResponse = res.data;
         setQuestionsOnPage(data.questions);
-        setTotalQuestions(data.totalQuestions);
-        setTotalPages(data.totalPages);
-        setCurrentPage(data.currentPage);
+        setTotalQuestions(data.total_questions_for_role);
+        setTotalPages(data.total_pages);
+        setCurrentPage(data.current_page);
         setCurrentDisplayTitle(
-          `Questions for ${data.companyName || filters.company}` +
-            (data.roleName && data.roleName !== "All Roles"
-              ? ` - Role: ${data.roleName}`
+          `Questions for ${data.company_name || filters.company}` +
+            (data.role_name && data.role_name !== "All Roles"
+              ? ` - Role: ${data.role_name}`
               : " - All Roles")
         );
       } catch (err) {
@@ -319,7 +316,7 @@ export default function QuestionsByCompanyPage() {
                   ];
 
                   return (
-                    <QuestionCard
+                    <PrimaryQuestionCard
                       key={q.topicId + "-" + index} // Assuming _instance_key exists or use another unique prop
                       topicId={q.topicId}
                       title={

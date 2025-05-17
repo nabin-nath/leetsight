@@ -8,7 +8,6 @@ import {
   Briefcase,
   Eye,
 } from "lucide-react";
-
 import Link from "next/link"; // For the "View Full Post" link
 
 // Reuse interfaces from page.tsx or define here if preferred
@@ -36,7 +35,7 @@ interface QuestionCardProps {
   // slug: string;
 }
 
-const QuestionCard = ({
+const PrimaryQuestionCard = ({
   topicId,
   title,
   companies,
@@ -59,9 +58,6 @@ const QuestionCard = ({
     extractedQuestions[0].refined_role !== "N/A"
       ? extractedQuestions[0].refined_role
       : null;
-
-  const formatLeetCodeLink = (id: number | string) =>
-    `https://leetcode.com/discuss/post/${id}`;
 
   return (
     <div className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
@@ -90,7 +86,7 @@ const QuestionCard = ({
         {typeof views === "number" && views > 0 && (
           <span
             key="view-count"
-            className="inline-flex items-center rounded-sm bg-green-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-yellow-600/20" // Different color for role
+            className="inline-flex items-center rounded-sm bg-yellow-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-yellow-600/20" // Different color for role
           >
             <Eye size={12} className="mr-1" /> {/* Optional icon */}
             {views}
@@ -142,44 +138,6 @@ const QuestionCard = ({
                   )}
                 </div>
               )}
-
-              {/* Similar Questions (filtered) */}
-              {q.similar_leetcode_questions?.filter(
-                (sq) => sq.similarity_score > 0.65
-              ).length > 0 && (
-                <div className="mt-1">
-                  <p className="text-sm font-medium text-gray-600 mb-1">
-                    Similar Platform Questions
-                  </p>
-                  <ul className="list-disc list-inside ml-2 space-y-1">
-                    {q.similar_leetcode_questions
-                      .filter((sq) => sq.similarity_score > 0.65)
-                      .map((sq, sqIdx) => (
-                        <li key={sqIdx} className="text-xs">
-                          <Link
-                            href={sq.source}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline inline-flex items-center"
-                          >
-                            {sq.source
-                              .split("/")
-                              .pop()
-                              ?.replace(/[-_]/g, " ") || sq.source}
-                            <ExternalLink className="ml-1 h-3 w-3" />
-                          </Link>
-                          <span className="text-gray-500 ml-1">
-                            (Similarity:{" "}
-                            {(
-                              parseFloat(sq.similarity_score.toFixed(2)) * 100
-                            ).toFixed(0)}
-                            %)
-                          </span>
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -214,4 +172,4 @@ const QuestionCard = ({
   );
 };
 
-export default QuestionCard;
+export default PrimaryQuestionCard;

@@ -4,8 +4,10 @@
 import Navbar from "@/components/ui/navbar";
 import PaginationRounded from "@/components/ui/pagination";
 import QuestionCard from "@/components/ui/card/question-card";
+import PrimaryQuestionCard from "@/components/ui/card/question";
 import Sidebar from "@/components/ui/sidebar";
 import { useState, useEffect, useCallback } from "react";
+import apiClient from "@/lib/apiClient";
 
 // Define interfaces (Keep them as they are)
 interface SimilarQuestion {
@@ -28,12 +30,13 @@ interface ProcessedPost {
   systemProcessedAt?: string;
   companies_mentioned_in_post: string[];
   questions_extracted: ExtractedQuestion[];
+  views?: number; // Optional view count
 }
 interface RecentPostsApiResponse {
   posts: ProcessedPost[];
-  totalPosts: number;
-  currentPage: number;
-  totalPages: number;
+  total_posts: number;
+  current_page: number;
+  total_pages: number;
 }
 
 const POSTS_PER_PAGE = 10;
@@ -70,9 +73,10 @@ export default function Home() {
   // Fetch available companies for the filter dropdown (runs once)
   const fetchCompanies = useCallback(async () => {
     try {
-      const res = await fetch("/api/companies");
-      if (!res.ok) throw new Error("Failed to fetch companies");
-      const data = await res.json();
+      const res = await apiClient.get("/company-questions/distinct_companies");
+      if (res.status < 200 || res.status >= 300)
+        throw new Error("Failed to fetch companies");
+      const data = res.data;
       setAvailableCompanies(["All Companies", ...data.sort()]);
     } catch (err) {
       console.error("Error fetching companies:", err);
@@ -90,16 +94,18 @@ export default function Home() {
     setAvailableRoles(["Loading..."]); // Provide immediate feedback
 
     try {
-      const res = await fetch(
-        `/api/roles?company=${encodeURIComponent(companyName)}`
+      const res = await apiClient.get(
+        `/company-questions/roles_by_company/?company=${encodeURIComponent(
+          companyName
+        )}`
       );
-      if (!res.ok) {
-        const errData = await res.json();
+      if (res.status < 200 || res.status >= 300) {
+        const errData = res.data;
         throw new Error(
           errData.error || `Failed to fetch roles for ${companyName}`
         );
       }
-      const data: string[] = await res.json();
+      const data: string[] = res.data;
       setAvailableRoles(["All Roles", ...data.sort()]);
     } catch (err) {
       console.error(`Error fetching roles for ${companyName}:`, err);
@@ -110,27 +116,27 @@ export default function Home() {
   }, []);
 
   // Main data fetching function
-  const fetchData = useCallback(async (page: number, filters: FiltersState) => {
+  const fetchData = useCallback(async (page = 1, filters: FiltersState) => {
     setIsLoading(true);
     setError(null);
     try {
-      let url = `/api/recent-posts?page=${page}&limit=${POSTS_PER_PAGE}`;
+      let url = `/processed-posts/?page=${page}&limit=${POSTS_PER_PAGE}`;
       if (filters.company && filters.company !== "All Companies")
         url += `&company=${encodeURIComponent(filters.company)}`;
       if (filters.role && filters.role !== "All Roles")
         url += `&role=${encodeURIComponent(filters.role)}`;
       if (filters.timePeriod && filters.timePeriod !== "All Time")
-        url += `&timePeriod=${encodeURIComponent(filters.timePeriod)}`;
+        url += `&time_period=${encodeURIComponent(filters.timePeriod)}`;
 
-      const res = await fetch(url);
-      if (!res.ok) {
-        const errData = await res.json();
+      const res = await apiClient.get(url);
+      if (res.status < 200 || res.status >= 300) {
+        const errData = res.data;
         throw new Error(errData.error || `Failed to fetch posts`);
       }
-      const data: RecentPostsApiResponse = await res.json();
+      const data: RecentPostsApiResponse = res.data;
       setPosts(data.posts);
-      setTotalPages(data.totalPages);
-      setCurrentPage(data.currentPage);
+      setTotalPages(data.total_pages);
+      setCurrentPage(data.current_page);
     } catch (err) {
       console.error(err);
       if (err instanceof Error) setError(err.message);
@@ -170,7 +176,6 @@ export default function Home() {
   };
 
   const handleCompanySelectedInSidebar = (companyName: string) => {
-    console.log("Page: Company selected in sidebar:", companyName);
     // We don't update activeFilters.company here to avoid an immediate data re-fetch.
     // We only fetch roles. The actual filter application happens on "Apply Filters".
     fetchRolesForCompany(companyName);
@@ -179,10 +184,6 @@ export default function Home() {
   const handleFiltersChangeFromSidebar = (
     newFiltersFromSidebar: FiltersState
   ) => {
-    console.log(
-      "Page: Apply Filters clicked, new filters from sidebar:",
-      newFiltersFromSidebar
-    );
     setActiveFilters(newFiltersFromSidebar); // Directly set active filters
     setCurrentPage(1);
     // Note: fetchRolesForCompany is NOT called here directly anymore.
@@ -239,13 +240,14 @@ export default function Home() {
                 {" "}
                 {/* Adjusted spacing and padding */}
                 {posts.map((post) => (
-                  <QuestionCard
+                  <PrimaryQuestionCard
                     key={post._id}
                     topicId={post.topicId}
                     title={post.title}
                     companies={post.companies_mentioned_in_post}
                     date={formatDate(post.leetcodeCreatedAt)}
                     extractedQuestions={post.questions_extracted}
+                    views={post.views}
                   />
                 ))}
               </div>

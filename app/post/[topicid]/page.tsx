@@ -6,7 +6,8 @@ import QuestionCard from "@/components/ui/card/question-card"; // <-- Import Que
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ExternalLink, ChevronLeft, Building } from "lucide-react";
+import { ExternalLink, ChevronLeft, Building, Eye } from "lucide-react";
+import apiClient from "@/lib/apiClient";
 
 // Interfaces (ensure these are consistent)
 interface SimilarQuestion {
@@ -29,6 +30,7 @@ interface ProcessedPost {
   companies_mentioned_in_post: string[];
   questions_extracted: ExtractedQuestion[];
   systemProcessedAt?: string;
+  views?: number; // Optional view count
 }
 
 // Helper Functions (keep these or import from a shared util)
@@ -65,12 +67,12 @@ export default function PostDetailPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/post-detail/${id}`);
-      if (!res.ok) {
-        const errData = await res.json();
+      const res = await apiClient.get(`/processed-posts/${id}`);
+      if (res.status < 200 || res.status >= 300) {
+        const errData = res.data;
         throw new Error(errData.error || "Failed to fetch post details");
       }
-      const data: ProcessedPost = await res.json();
+      const data: ProcessedPost = res.data;
       setPost(data);
     } catch (err) {
       if (err instanceof Error) setError(err.message);
@@ -146,6 +148,13 @@ export default function PostDetailPage() {
                     {company}
                   </span>
                 ))}
+                <span
+                  key="view-count"
+                  className="inline-flex items-center rounded-sm bg-green-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-yellow-600/20" // Different color for role
+                >
+                  <Eye size={12} className="mr-1" /> {/* Optional icon */}
+                  {post.views}
+                </span>
               </div>
             )}
         </div>

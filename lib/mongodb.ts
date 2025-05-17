@@ -154,9 +154,9 @@ export async function getPaginatedCompanyQuestions(
       timeFilterQueryPart = {
         leetcodeCreatedAt: { $gte: startOfDay(startDate) },
       };
-      console.log(
-        `CompanyQuestions: Applying time filter: leetcodeCreatedAt >= ${startDate.toISOString()}`
-      );
+      // console.log(
+      //   `CompanyQuestions: Applying time filter: leetcodeCreatedAt >= ${startDate.toISOString()}`
+      // );
     }
   }
 
