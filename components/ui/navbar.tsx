@@ -1,5 +1,6 @@
 "use client";
 import { useSession } from "next-auth/react";
+import { SiMinds } from "react-icons/si";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -32,8 +33,8 @@ export default function Navbar() {
     <nav className="w-full border-b border-gray-200 bg-white py-3 mb-5">
       <div className="mx-2 px-4 flex justify-between items-center">
         <div className="flex items-center gap-2 md:gap-8">
-          <Link href="/" prefetch className="text-xl font-bold">
-            <span className="text-black-600">&lt;/&gt;</span> LeetSight
+          <Link href="/" prefetch className="text-xl font-bold flex items-center">
+          <SiMinds className="h-8 w-8" /> LeetSight
           </Link>
 
           {/* Navigation Links */}
