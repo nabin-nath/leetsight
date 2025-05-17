@@ -5,7 +5,7 @@ const apiClient = axios.create({
   baseURL:
     process.env.NEXT_PUBLIC_FASTAPI_BASE_URL ||
     //  "http://localhost:8000/api/v1", // Default to localhost for local development
-    "https://leetcode-server-361581772158.asia-southeast1.run.app/api/v1", // Your FastAPI base URL
+    "https://api.leetsight.com/api/v1", // Your FastAPI base URL
   headers: {
     "Content-Type": "application/json",
   },
