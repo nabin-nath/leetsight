@@ -8,6 +8,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/ui/AppSidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { SiteHeader } from "@/components/ui/SiteHeader";
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -39,6 +40,7 @@ const layout = ({
                   {children}
                   <Toaster />
                   <Analytics />
+                  <SpeedInsights />
                 </div>
               </SidebarInset>
             </SidebarProvider>
