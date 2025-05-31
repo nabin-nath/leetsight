@@ -102,7 +102,13 @@ const queryClient = new QueryClient({
 export default function HomeWrapper() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Suspense fallback={<div>Loading...</div>}>
+      <Suspense
+        fallback={
+          <div className="mx-auto my-auto flex justify-center items-center">
+            Loading data...
+          </div>
+        }
+      >
         <Home />
       </Suspense>
     </QueryClientProvider>
