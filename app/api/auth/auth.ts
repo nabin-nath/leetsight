@@ -80,10 +80,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               token.error = "BackendSyncError";
             } else {
               const backendUser: BackendUser = await backendResponse.json();
-              console.log(
-                "Backend user synced/created successfully:",
-                backendUser
-              );
+              // console.log(
+              //   "Backend user synced/created successfully:",
+              //   backendUser
+              // );
               // Optionally store some backend-specific user info in the token
               // e.g., the backend database ID if you need it client-side
               token.backendUserId = backendUser.id; // Store the backend UUID string
