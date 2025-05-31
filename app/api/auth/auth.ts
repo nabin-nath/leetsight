@@ -1,6 +1,18 @@
 import NextAuth, { type User } from "next-auth";
 import Google from "next-auth/providers/google";
 
+interface BackendUser {
+  id: string;
+  email: string;
+  google_id: string | null;
+  username: string;
+  full_name: string | null;
+  picture_url: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Google({
@@ -40,6 +52,51 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             image: profile.picture,
           };
         }
+
+        // save user in db
+        if (token.idToken && process.env.NEXT_PUBLIC_FASTAPI_BASE_URL) {
+          try {
+            // console.log('url is ', process.env.NEXT_PUBLIC_FASTAPI_BASE_URL)
+            // console.log("Attempting backend user sync/creation...");
+            const backendResponse = await fetch(
+              `${process.env.NEXT_PUBLIC_FASTAPI_BASE_URL}/users/me`,
+              {
+                method: "GET", // Or POST if you create a dedicated sync endpoint
+                headers: {
+                  Authorization: `Bearer ${token.idToken}`,
+                  "Content-Type": "application/json",
+                },
+                // Add any other headers your backend expects (e.g., user agent)
+              }
+            );
+
+            if (!backendResponse.ok) {
+              // Handle backend errors
+              const errorBody = await backendResponse.text();
+              console.error(
+                `Backend sync failed: ${backendResponse.status} - ${errorBody}`
+              );
+              // Optionally add an error to the token or session to indicate sync failure
+              token.error = "BackendSyncError";
+            } else {
+              const backendUser: BackendUser = await backendResponse.json();
+              console.log(
+                "Backend user synced/created successfully:",
+                backendUser
+              );
+              // Optionally store some backend-specific user info in the token
+              // e.g., the backend database ID if you need it client-side
+              token.backendUserId = backendUser.id; // Store the backend UUID string
+              token.error = undefined; // Clear any previous sync error
+            }
+          } catch (fetchError: any) {
+            console.error("Error during backend user sync fetch:", fetchError);
+            token.error = "BackendSyncFetchError";
+          }
+        } else {
+          console.warn("Skipping backend sync: Missing idToken or backend URL");
+        }
+
         return token;
       }
 

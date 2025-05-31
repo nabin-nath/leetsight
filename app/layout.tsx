@@ -3,7 +3,11 @@ import { Inter } from "next/font/google";
 import { ThemeProvider } from "../components/theme-provider";
 import type { Metadata } from "next";
 import { SessionProvider } from "next-auth/react";
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from "@vercel/analytics/next";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/ui/AppSidebar";
+import { Toaster } from "@/components/ui/sonner";
+import { SiteHeader } from "@/components/ui/SiteHeader";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,12 +27,21 @@ const layout = ({
         <SessionProvider>
           <ThemeProvider
             attribute="class"
-            defaultTheme="light"
+            defaultTheme="system"
             enableSystem
             disableTransitionOnChange
           >
-            {children}
-            <Analytics />
+            <SidebarProvider>
+              <AppSidebar variant="inset" />
+              <SidebarInset>
+                <SiteHeader />
+                <div className="flex flex-1 flex-col">
+                  {children}
+                  <Toaster />
+                  <Analytics />
+                </div>
+              </SidebarInset>
+            </SidebarProvider>
           </ThemeProvider>
         </SessionProvider>
       </body>
