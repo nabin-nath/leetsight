@@ -73,11 +73,11 @@ export function NavUser({ user }: { user: any }) {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem>
+                <DropdownMenuItem disabled >
                   <UserCircleIcon />
                   Account
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem disabled>
                   <BellIcon />
                   Notifications
                 </DropdownMenuItem>

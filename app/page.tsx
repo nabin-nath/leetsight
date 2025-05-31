@@ -110,7 +110,7 @@ function Home() {
 
   const getInitialFilters = useCallback((): FiltersState => {
     const params = new URLSearchParams(searchParams);
-    const defaultFromDate = addDays(new Date(), -30);
+    const defaultFromDate = addDays(new Date(), -60);
     const defaultToDate = new Date();
 
     return {
@@ -374,7 +374,7 @@ function Home() {
 
   return (
     <div className="">
-      <div className="flex flex-col w-full rounded-lg p-4 md:p-6 shadow-xl h-[calc(100vh-65px)] overflow-hidden">
+      <div className="flex flex-col w-full rounded-lg p-4 md:p-6 shadow-xl md:h-[calc(100vh-65px)] overflow-hidden">
         <div className="mb-4">
           <p className="mt-1 text-muted-foreground">
             Browse the latest technical interview experiences from top

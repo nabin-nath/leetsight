@@ -24,10 +24,10 @@ export function NavMain({
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton tooltip={item.title}>
-                <Link className="flex gap-2 items-center" href={item.url}>
+          {items.map((item, index) => (
+            <SidebarMenuItem key={index}>
+              <SidebarMenuButton asChild tooltip={item.title}>
+                <Link href={item.url}>
                   {item.icon && <item.icon size={15} />}
                   <span>{item.title}</span>
                 </Link>

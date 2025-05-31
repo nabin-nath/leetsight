@@ -154,7 +154,7 @@ export function ApplyFiltersCard({
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="w-full space-y-4 md:space-y-0 md:flex md:space-x-5 items-end flex-wrap"
+          className="w-full flex items-end flex-wrap gap-4"
         >
           {/* Company */}
           <FormField
