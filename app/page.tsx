@@ -29,6 +29,11 @@ interface ProcessedPost {
   views?: number;
   tags: string[] | null;
   roles: string[] | [];
+  questions_extracted: number;
+  likes_count: number;
+  dislikes_count: number;
+  is_liked: boolean;
+  is_disliked: boolean;
 }
 interface RecentPostsApiResponse {
   items: ProcessedPost[];
@@ -445,6 +450,11 @@ function Home() {
                     views={post.views}
                     tags={post.tags}
                     roles={post.roles}
+                    questions_extracted={post.questions_extracted}
+                    likes_count={post.likes_count}
+                    dislikes_count={post.dislikes_count}
+                    is_liked={post.is_liked}
+                    is_disliked={post.is_disliked}
                   />
                 ))}
               </div>

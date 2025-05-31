@@ -7,11 +7,20 @@ import {
   Briefcase,
   Eye,
   Building2,
+  ThumbsUp,
+  ThumbsDown,
+  FileSearch,
 } from "lucide-react";
 import Link from "next/link"; // For the "View Full Post" link
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import {
+  RiThumbDownFill,
+  RiThumbDownLine,
+  RiThumbUpFill,
+  RiThumbUpLine,
+} from "react-icons/ri";
 
 // Reuse interfaces from page.tsx or define here if preferred
 interface SimilarQuestion {
@@ -41,6 +50,11 @@ interface QuestionCardProps {
   views?: number; // Optional view count
   tags: string[] | null;
   roles: string[] | [];
+  questions_extracted: number;
+  likes_count: number;
+  dislikes_count: number;
+  is_liked: boolean;
+  is_disliked: boolean;
 }
 
 const PrimaryQuestionCard = ({
@@ -52,6 +66,11 @@ const PrimaryQuestionCard = ({
   views,
   tags,
   roles,
+  questions_extracted,
+  likes_count,
+  dislikes_count,
+  is_liked,
+  is_disliked,
 }: QuestionCardProps) => {
   const [expanded, setExpanded] = useState(false);
   const toggleExpand = () => setExpanded(!expanded);
@@ -89,10 +108,10 @@ const PrimaryQuestionCard = ({
               </Badge>
             ))}
 
-            {typeof yoe === "number" && yoe > 0 && (
+          {typeof yoe === "number" && yoe > 0 && (
             <Badge variant="secondary">
               <Flame size={12} className="mr-1" />
-              {yoe}{" "}Years of exp
+              {yoe} Years of exp
             </Badge>
           )}
 
@@ -102,25 +121,43 @@ const PrimaryQuestionCard = ({
               {views}
             </Badge>
           )}
+
+          {typeof questions_extracted === "number" &&
+            questions_extracted > 0 && (
+              <Badge variant="secondary">
+                <FileSearch size={12} className="mr-1" />
+                {questions_extracted} questions found
+              </Badge>
+            )}
         </div>
       </div>
-
-      {/* <p className="mt-2 text-md">{title}</p> */}
-
-      
 
       <div className="mt-4 flex items-center justify-between">
         <span className="text-xs ">{leetcode_created_at || "Date N/A"}</span>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/post/${topic_id}`}
-            target="_blank"
-            passHref
-            className=" border border-transparent px-3 py-1.5 rounded-md flex items-center text-sm font-medium transition-colors"
-          >
-            View Full Post
-            <ExternalLink className="ml-1 h-4 w-4" />
-          </Link>
+          <Badge variant="outline">
+            {is_liked ? (
+              <>
+                <RiThumbUpFill size={16} /> {likes_count}
+              </>
+            ) : (
+              <>
+                <RiThumbUpLine size={16} /> {likes_count}
+              </>
+            )}
+          </Badge>
+
+          <Badge variant="outline">
+            {is_disliked ? (
+              <>
+                <RiThumbDownFill size={16} /> {dislikes_count}
+              </>
+            ) : (
+              <>
+                <RiThumbDownLine size={16} /> {dislikes_count}
+              </>
+            )}
+          </Badge>
         </div>
       </div>
     </div>

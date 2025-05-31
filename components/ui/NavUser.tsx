@@ -94,7 +94,7 @@ export function NavUser({ user }: { user: any }) {
             onClick={async () => {
               await signIn("google", { callbackUrl: "/" }); // Use callbackUrl for next-auth
             }}
-            className="w-full"
+            className="w-full cursor-pointer"
           >
             <FaGoogle /> Sign in with Google
           </Button>

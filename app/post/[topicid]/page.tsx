@@ -1,18 +1,16 @@
 "use client";
 
 import {
-  MessageSquareText,
   ThumbsUp,
   ThumbsDown,
   Eye,
   Tag,
-  ChevronLeft, // Import ChevronLeft icon
   ExternalLink,
-  Building, // Keep other imports
   CircleHelp,
   Building2,
   Briefcase,
   Flame,
+  ArrowLeftCircle,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation"; // Import useRouter
@@ -21,6 +19,14 @@ import apiClient from "@/lib/apiClient";
 import MarkdownFormatter from "@/components/custom/MarkdownFormatter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  RiThumbDownFill,
+  RiThumbDownLine,
+  RiThumbUpFill,
+  RiThumbUpLine,
+} from "react-icons/ri";
+import { toast } from "sonner";
+import { useSession } from "next-auth/react";
 
 // Interfaces (ensure these are consistent)
 interface PostResponse {
@@ -46,6 +52,10 @@ interface Post {
   updated_at: string;
   companies: Company[];
   roles: string[] | [];
+  likes_count: number;
+  dislikes_count: number;
+  is_liked: boolean;
+  is_disliked: boolean;
 }
 
 interface Company {
@@ -94,6 +104,128 @@ export default function PostDetailPage() {
   const [postData, setPostData] = useState<PostResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const { data: session, status } = useSession();
+  const user = session?.user;
+
+  const deleteReactions = async () => {
+    try {
+      const id = postData?.post.topic_id;
+      const res = await apiClient.delete(`/posts/${id}/like`);
+
+      if (res.status < 200 || res.status >= 300) {
+        const errData = res.data;
+        toast.error("Not able to update reaction, kindly try again later.");
+        return;
+      }
+
+      toast.success("Updated reaction successfully");
+      return true;
+    } catch (e) {
+      toast.error("Not able to update reaction, kindly try again later.");
+      return false;
+    }
+  };
+
+  const updateReactions = async (type: string) => {
+    try {
+      const id = postData?.post.topic_id;
+
+      const body = {
+        is_like: type == "like",
+      };
+
+      const res = await apiClient.post(`/posts/${id}/like`, body);
+
+      if (res.status < 200 || res.status >= 300) {
+        const errData = res.data;
+        toast.error("Not able to update reaction, kindly try again later.");
+        return;
+      }
+
+      toast.success("Updated reaction successfully");
+      return true;
+    } catch (e) {
+      toast.error("Not able to update reaction, kindly try again later.");
+      return false;
+    }
+  };
+
+  const handleLikeClick = async (type: "like" | "dislike") => {
+    let success = null;
+
+    if (!user) {
+      toast.error("Please login first");
+      return;
+    }
+    if (type == "like") {
+      if (postData?.post.is_liked) {
+        // delete like
+        success = await deleteReactions();
+      } else {
+        // new like
+        success = await updateReactions("like");
+      }
+
+      if (success) {
+        setPostData((prev) => {
+          if (!prev) return prev;
+          const wasLiked = prev.post.is_liked;
+          const wasDisliked = prev.post.is_disliked;
+          return {
+            ...prev,
+            post: {
+              ...prev.post,
+              is_liked: !wasLiked,
+              likes_count: wasLiked
+                ? prev.post.likes_count - 1
+                : prev.post.likes_count + 1,
+              // If switching from dislike to like, reset dislike
+              is_disliked: wasLiked ? prev.post.is_disliked : false,
+              dislikes_count: wasLiked
+                ? prev.post.dislikes_count
+                : wasDisliked
+                ? prev.post.dislikes_count - 1
+                : prev.post.dislikes_count,
+            },
+          };
+        });
+      }
+    } else if (type == "dislike") {
+      if (postData?.post.is_disliked) {
+        // delete dislike
+        success = await deleteReactions();
+      } else {
+        // new dislike
+        success = await updateReactions("dislike");
+      }
+
+      if (success) {
+        setPostData((prev) => {
+          if (!prev) return prev;
+          const wasDisliked = prev.post.is_disliked;
+          const wasLiked = prev.post.is_liked;
+          return {
+            ...prev,
+            post: {
+              ...prev.post,
+              is_disliked: !wasDisliked,
+              dislikes_count: wasDisliked
+                ? prev.post.dislikes_count - 1
+                : prev.post.dislikes_count + 1,
+              // If switching from like to dislike, reset like
+              is_liked: wasDisliked ? prev.post.is_liked : false,
+              likes_count: wasDisliked
+                ? prev.post.likes_count
+                : wasLiked
+                ? prev.post.likes_count - 1
+                : prev.post.likes_count,
+            },
+          };
+        });
+      }
+    }
+  };
 
   const fetchPostDetail = useCallback(async (id: string) => {
     if (!id || isNaN(parseInt(id))) {
@@ -158,9 +290,9 @@ export default function PostDetailPage() {
       {/* Back Button */}
       <button
         onClick={handleBackClick} // Attach the handler
-        className="flex items-center text-sm text-muted-foreground hover:underline mb-4 cursor-pointer"
+        className="flex items-center text-sm text-muted-foreground mb-4 cursor-pointer"
       >
-        <ChevronLeft size={16} className="mr-1" /> Back to Posts
+        <ArrowLeftCircle size={16} className="mr-1" /> Back to Posts
       </button>
 
       {/* Post Details */}
@@ -209,12 +341,6 @@ export default function PostDetailPage() {
                 {postData.post.views}
               </Badge>
             )}
-          <div className="flex items-center gap-1">
-            <ThumbsUp size={16} /> {postData.post.upvote}
-          </div>
-          <div className="flex items-center gap-1">
-            <ThumbsDown size={16} /> {postData.post.downvote}
-          </div>
 
           <div className="flex items-center gap-1">
             <span>
@@ -239,17 +365,50 @@ export default function PostDetailPage() {
         )}
 
         {/* Link to Original LeetCode Post */}
-        <Button variant="outline" className="mt-4">
-          <Link
-            href={`https://leetcode.com/discuss/post/${postData.post.topic_id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center text-sm text-primary"
-          >
-            View Original Post on LeetCode
-            <ExternalLink className="ml-1 h-4 w-4" />
-          </Link>
-        </Button>
+        <div className="flex items-center justify-between">
+          <Button variant="outline" className="mt-4">
+            <Link
+              href={`https://leetcode.com/discuss/post/${postData.post.topic_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center text-sm text-primary"
+            >
+              View Original Post on LeetCode
+              <ExternalLink className="ml-1 h-4 w-4" />
+            </Link>
+          </Button>
+
+          <div className="flex gap-2 mt-auto">
+            <div
+              className="flex p-1 rounded-md items-center gap-1 cursor-pointer hover:bg-accent"
+              onClick={() => handleLikeClick("like")}
+            >
+              {postData.post.is_liked ? (
+                <>
+                  <RiThumbUpFill size={16} /> {postData.post.likes_count}
+                </>
+              ) : (
+                <>
+                  <RiThumbUpLine size={16} /> {postData.post.likes_count}
+                </>
+              )}
+            </div>
+            <div
+              className="flex p-1 rounded-md items-center gap-1 cursor-pointer hover:bg-accent"
+              onClick={() => handleLikeClick("dislike")}
+            >
+              {postData.post.is_disliked ? (
+                <>
+                  <RiThumbDownFill size={16} /> {postData.post.dislikes_count}
+                </>
+              ) : (
+                <>
+                  <RiThumbDownLine size={16} /> {postData.post.dislikes_count}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Extracted Questions Section */}

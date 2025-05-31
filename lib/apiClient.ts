@@ -60,7 +60,7 @@ apiClient.interceptors.response.use(
       // import { signOut } from "next-auth/react";
       // signOut({ callbackUrl: '/signin' });
       // Option 2: Or just redirect, middleware will catch it if session is truly gone
-      window.location.href = "/signin";
+      // window.location.href = "/signin";
     }
     return Promise.reject(error);
   }
