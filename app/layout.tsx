@@ -14,8 +14,32 @@ import Head from "next/head";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Leetsight - Interview Insights",
-  description: "Explore recent tech interview questions and insights.",
+  title: "Leetsight - AI-Powered Interview Preperation",
+  description:
+    "LeetSight helps software engineers prepare for technical interviews by analyzing real LeetCode discussion posts, identifying trends, and surfacing relevant coding questions by company and role.",
+  openGraph: {
+    title:
+      "LeetSight – AI-Powered Interview Prep from Real LeetCode Discussions",
+    description:
+      "Discover trending interview questions, role-specific patterns, and LeetCode problem mappings – all powered by real user-shared experiences and AI.",
+    url: "https://www.leetsight.com/",
+    type: "website",
+    images: [
+      {
+        url: "https://vpptjdtojpuhmytedqil.supabase.co/storage/v1/object/public/leetsight-assets//leetsight.png",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title:
+      "LeetSight – AI-Powered Interview Prep from Real LeetCode Discussions",
+    description:
+      "LeetSight analyzes LeetCode Discuss posts to reveal real interview questions, trends, and related coding problems for efficient tech interview prep.",
+    images: [
+      "https://vpptjdtojpuhmytedqil.supabase.co/storage/v1/object/public/leetsight-assets//leetsight.png",
+    ],
+  },
 };
 
 const layout = ({
@@ -25,45 +49,6 @@ const layout = ({
 }>) => {
   return (
     <html lang="en" suppressHydrationWarning>
-      <Head>
-        <title>
-          Leetsight - AI-Powered Interview Prep from Real LeetCode Discussions
-        </title>
-        <meta
-          property="description"
-          content="LeetSight helps software engineers prepare for technical interviews by analyzing real LeetCode discussion posts, identifying trends, and surfacing relevant coding questions by company and role."
-          key="description"
-        />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://www.leetsight.com/" />
-        <meta
-          property="og:title"
-          content="LeetSight – AI-Powered Interview Prep from Real LeetCode Discussions"
-        />
-        <meta
-          property="og:description"
-          content="Discover trending interview questions, role-specific patterns, and LeetCode problem mappings – all powered by real user-shared experiences and AI."
-        />
-        <meta
-          property="og:image"
-          content="https://vpptjdtojpuhmytedqil.supabase.co/storage/v1/object/public/leetsight-assets//leetsight.png"
-        />
-
-        <meta property="twitter:card" content="summary_large_image" />
-        <meta property="twitter:url" content="https://www.leetsight.com/" />
-        <meta
-          property="twitter:title"
-          content="LeetSight – AI-Powered Interview Prep from Real LeetCode Discussions"
-        />
-        <meta
-          property="twitter:description"
-          content="LeetSight analyzes LeetCode Discuss posts to reveal real interview questions, trends, and related coding problems for efficient tech interview prep."
-        />
-        <meta
-          property="twitter:image"
-          content="https://vpptjdtojpuhmytedqil.supabase.co/storage/v1/object/public/leetsight-assets//leetsight.png"
-        />
-      </Head>
       <body className={inter.className}>
         <SessionProvider>
           <ThemeProvider
