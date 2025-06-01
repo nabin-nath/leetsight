@@ -92,7 +92,7 @@ const formatDateDisplay = (dateString?: string | null) => {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes for posts
+      staleTime: 15 * 60 * 1000, // 5 minutes for posts
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
     },
