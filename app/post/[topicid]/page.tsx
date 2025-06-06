@@ -286,14 +286,25 @@ export default function PostDetailPage() {
     );
 
   return (
-    <div className="max-w-5xl mx-auto p-4 space-y-6">
+    <div className="max-w-5xl mx-auto p-4 space-y-2">
       {/* Back Button */}
-      <button
-        onClick={handleBackClick} // Attach the handler
-        className="flex items-center text-sm text-muted-foreground mb-4 cursor-pointer"
-      >
-        <ArrowLeftCircle size={16} className="mr-1" /> Back to Posts
-      </button>
+      <div className="flex justify-between">
+        <button
+          onClick={handleBackClick} // Attach the handler
+          className="flex items-center text-sm text-muted-foreground mb-4 cursor-pointer"
+        >
+          <ArrowLeftCircle size={16} className="mr-1" /> Back to Posts
+        </button>
+
+        <Link
+          href={`https://leetcode.com/discuss/post/${postData.post.topic_id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center text-sm text-muted-foreground mb-4 cursor-pointer"
+        >
+          View Post on Leetcode? <ExternalLink size={16} className="ml-1" />
+        </Link>
+      </div>
 
       {/* Post Details */}
       <div className="p-6 rounded-2xl border bg-card shadow-lg space-y-4">
@@ -366,7 +377,7 @@ export default function PostDetailPage() {
 
         {/* Link to Original LeetCode Post */}
         <div className="flex items-center justify-between">
-          <Button variant="outline" className="mt-4">
+          {/* <Button variant="outline" className="mt-4">
             <Link
               href={`https://leetcode.com/discuss/post/${postData.post.topic_id}`}
               target="_blank"
@@ -376,7 +387,7 @@ export default function PostDetailPage() {
               View Original Post on LeetCode
               <ExternalLink className="ml-1 h-4 w-4" />
             </Link>
-          </Button>
+          </Button> */}
 
           <div className="flex gap-2 mt-auto">
             <div
