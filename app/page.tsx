@@ -2,7 +2,7 @@
 "use client";
 import * as React from "react";
 import PrimaryQuestionCard from "@/components/custom/card/question";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import apiClient from "@/lib/apiClient";
 import { addDays, format, parseISO, isValid } from "date-fns";
 import { ApplyFiltersCard } from "@/components/custom/applyFilters";
@@ -50,6 +50,14 @@ interface FiltersState {
   toDate?: Date;
 }
 
+interface QueryKeyPostFilters {
+  companyId: string;
+  role: string;
+  pageSize: string;
+  fromDate?: string;
+  toDate?: string;
+}
+
 interface CompanyOption {
   name: string;
   id: string | number;
@@ -73,26 +81,24 @@ const formatDateDisplay = (dateString?: string | null) => {
   if (!dateString) return "Date N/A";
   try {
     const dateObj = new Date(dateString);
-    // Check if date is valid after parsing
     if (isNaN(dateObj.getTime())) {
-      // Try parsing with parseISO if it failed
       const isoDateObj = parseISO(dateString);
       if (isValid(isoDateObj)) {
         return format(isoDateObj, "MMM dd, yyyy");
       }
-      return dateString; // Fallback
+      return dateString;
     }
     return format(dateObj, "MMM dd, yyyy");
-  } catch {
-    return dateString; // Fallback
+  } catch (e) {
+    console.error("Unable to parse dateString: ", dateString, e);
+    return dateString;
   }
 };
 
-// --- Query Client Setup ---
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 15 * 60 * 1000, // 5 minutes for posts
+      staleTime: 15 * 60 * 1000,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
     },
@@ -118,12 +124,12 @@ export default function HomeWrapper() {
 function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const companyIdForCurrentRolesRef = useRef<string | number>("1000");
 
   const getInitialFilters = useCallback((): FiltersState => {
     const params = new URLSearchParams(searchParams);
     const defaultFromDate = addDays(new Date(), -60);
     const defaultToDate = new Date();
-
     return {
       companyId: params.get("companyId") || "1000",
       role: params.get("role") || "All Roles",
@@ -140,166 +146,193 @@ function Home() {
     return isNaN(page) || page < 1 ? 1 : page;
   }, [searchParams]);
 
-  // Initialize state based on URL only once
   const [currentPage, setCurrentPage] = useState<number>(getInitialPage);
   const [activeFilters, setActiveFilters] =
     useState<FiltersState>(getInitialFilters);
-
-  // --- State for Filter Options (Roles) ---
-  // We still need local state for availableRoles as it depends on the *selected* company
   const [availableRoles, setAvailableRoles] = useState<string[]>(["All Roles"]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(false);
 
-  // --- Fetch Companies with useQuery ---
   const {
     data: companiesData,
     isLoading: isCompaniesLoading,
     isError: isCompaniesError,
     error: companiesError,
   } = useQuery<CompanyOption[], Error>({
-    queryKey: ["companies"], // Static key
+    queryKey: ["companies"],
     queryFn: async () => {
-      // console.log("React Query Fetching Companies...");
       const res = await apiClient.get("/companies");
       if (res.status < 200 || res.status >= 300)
         throw new Error("Failed to fetch companies");
       const data = res.data as CompanyOption[];
-      // Add the "All Companies" option here as it's part of the filter dropdown
       return [{ name: "All Companies", id: "1000" }, ...data];
     },
-    staleTime: Infinity, // Companies list is static/rarely changes
+    staleTime: Infinity,
   });
 
-  // Derive available companies for the dropdown from the query result
-  // Use a fallback if companiesData is not yet available
   const availableCompanies = companiesData || [
     { name: "All Companies", id: "1000" },
   ];
 
-  // --- Fetch Roles Function (Manual fetch, triggered by company selection) ---
+  // --- MODIFICATION: Remove isLoadingRoles from useCallback dependency array ---
   const fetchRolesForCompany = useCallback(
-    async (companyId: string | number) => {
-      if (!companyId || String(companyId) === "1000") {
-        setAvailableRoles(["All Roles"]);
+    async (companyIdToFetch: string | number) => {
+      // Read the current value of isLoadingRoles directly.
+      // This is fine because useCallback creates a closure over the state setters.
+      // The bail-out condition `!isLoadingRoles` will use the value of isLoadingRoles
+      // at the time fetchRolesForCompany is *called*, not when it was defined.
+      // However, for the specific bail-out to work as intended (preventing re-fetch if already loading *for the same ID*),
+      // the check against companyIdForCurrentRolesRef.current is more critical.
+      // If roles are for a different company, we want to load regardless of isLoadingRoles.
+      if (
+        String(companyIdToFetch) ===
+          String(companyIdForCurrentRolesRef.current) &&
+        !isLoadingRoles // Check if NOT currently loading (i.e., roles are considered settled for this ID)
+      ) {
+        // console.log(`Roles for company ${companyIdToFetch} already present and not loading. Skipping fetch.`);
         return;
       }
+
+      if (!companyIdToFetch || String(companyIdToFetch) === "1000") {
+        // Only update state if it's actually different to avoid unnecessary re-renders.
+        if (
+          companyIdForCurrentRolesRef.current !== "1000" ||
+          availableRoles.length > 1 ||
+          availableRoles[0] !== "All Roles"
+        ) {
+          setAvailableRoles(["All Roles"]);
+          companyIdForCurrentRolesRef.current = "1000";
+        }
+        if (isLoadingRoles) setIsLoadingRoles(false); // Ensure loading is false if it was true
+        return;
+      }
+
+      // If we reach here, we are fetching for a new company ID, or for the same ID but we want to force a reload (not covered by current logic but possible)
+      // or the current roles are not for this companyId
       setIsLoadingRoles(true);
       setAvailableRoles(["Loading..."]);
 
       try {
-        // Use the company ID in the API call
         const res = await apiClient.get(
-          `/companies/${encodeURIComponent(companyId)}/roles`
+          `/companies/${encodeURIComponent(companyIdToFetch)}/roles`
         );
         if (res.status < 200 || res.status >= 300) {
           const errData = res.data;
-          console.error("API Error Response for Roles:", errData); // Log full error response
           throw new Error(
             errData.error ||
-              `Failed to fetch roles for company ID ${companyId} (Status: ${res.status})`
+              `Failed to fetch roles for company ID ${companyIdToFetch} (Status: ${res.status})`
           );
         }
         const data: string[] = res.data;
         setAvailableRoles([
           "All Roles",
-          ...data.filter((role) => role && role !== "N/A").sort(), // Ensure role is not null/empty
+          ...data.filter((role) => role && role !== "N/A").sort(),
         ]);
+        companyIdForCurrentRolesRef.current = companyIdToFetch;
       } catch (err) {
-        console.error(`Error fetching roles for company ID ${companyId}:`, err);
-        // Reset roles on error to avoid showing stale roles for the wrong company
+        console.error(
+          `Error fetching roles for company ID ${companyIdToFetch}:`,
+          err
+        );
         setAvailableRoles(["All Roles"]);
+        companyIdForCurrentRolesRef.current = "1000";
       } finally {
         setIsLoadingRoles(false);
       }
     },
-    []
-  ); // Dependencies: apiClient assumed stable
+    // Dependencies: `setAvailableRoles` and `setIsLoadingRoles` are stable.
+    // `companyIdForCurrentRolesRef` is a ref and doesn't cause re-creation of the callback.
+    // `isLoadingRoles` was the culprit, now removed.
+    [] // apiClient is assumed stable and outside component scope
+  );
 
   useEffect(() => {
     const currentCompanyId = activeFilters.companyId;
-    // Fetch roles only if companies data is loaded and a specific company is selected
-    // AND the currentCompanyId is actually different from the previous one
-    // (though dependency array handles this, explicit check can clarify).
+
     if (companiesData && currentCompanyId && currentCompanyId !== "1000") {
-      // Ensure the selected company ID actually exists in the loaded companies list
       const companyExists = companiesData.some(
         (c) => String(c.id) === currentCompanyId
       );
-
       if (companyExists) {
-        // console.log(
-        //   "Company filter changed to ID:",
-        //   currentCompanyId,
-        //   "fetching roles..."
-        // );
-        // Call fetchRolesForCompany with the ID
         fetchRolesForCompany(currentCompanyId);
       } else {
-        // If companyId from URL doesn't match available companies (e.g., invalid ID)
+        // This case needs to be careful: setActiveFilters will trigger a re-render,
+        // and this useEffect will run again.
         console.warn(
           `Company ID "${currentCompanyId}" from URL not found in available companies. Resetting filter.`
         );
-        // Reset to default, this state update will trigger a re-render and re-evaluate this effect
-        // But the effect should NOT re-run if activeFilters.companyId becomes "1000".
-        setActiveFilters((prev) => ({
-          ...prev,
-          companyId: "1000",
-          role: "All Roles",
-        }));
+        // Only set if different to avoid loop if already "1000"
+        if (
+          activeFilters.companyId !== "1000" ||
+          activeFilters.role !== "All Roles"
+        ) {
+          setActiveFilters((prev) => ({
+            ...prev,
+            companyId: "1000",
+            role: "All Roles",
+          }));
+        } else {
+          // If already default, ensure roles are reset if needed (though fetchRolesForCompany("1000") below would handle it)
+          if (companyIdForCurrentRolesRef.current !== "1000") {
+            fetchRolesForCompany("1000");
+          }
+        }
       }
     } else if (companiesData && activeFilters.companyId === "1000") {
-      // If "All Companies" is selected, reset roles if they are not already "All Roles"
-      // This check is important and uses availableRoles, but setting availableRoles
-      // *doesn't* trigger the effect thanks to removing it from deps.
-      if (!(availableRoles.length === 1 && availableRoles[0] === "All Roles")) {
-        // console.log(
-        //   "Company filter set to 'All Companies', resetting roles state."
-        // );
-        setAvailableRoles(["All Roles"]);
-      }
+      // If "All Companies" is selected, ensure roles are "All Roles".
+      // fetchRolesForCompany will handle idempotency.
+      fetchRolesForCompany("1000");
     }
   }, [
     companiesData,
     activeFilters.companyId,
+    activeFilters.role,
     fetchRolesForCompany,
     setActiveFilters,
   ]);
+  // Added activeFilters.role to deps of useEffect, if role reset is tied to company reset.
+
+  const queryKeyFiltersForPosts: QueryKeyPostFilters = {
+    companyId: activeFilters.companyId,
+    role: activeFilters.role,
+    pageSize: activeFilters.pageSize,
+    fromDate: activeFilters.fromDate
+      ? format(activeFilters.fromDate, "yyyy-MM-dd")
+      : undefined,
+    toDate: activeFilters.toDate
+      ? format(activeFilters.toDate, "yyyy-MM-dd")
+      : undefined,
+  };
 
   const {
     data: postData,
     isLoading: isPostsLoading,
+    // ... (rest of the posts query is unchanged) ...
     isError: isPostsError,
     error: postsError,
     isFetching: isPostsFetching,
     isPlaceholderData: isPostsPlaceholderData,
   } = useQuery<RecentPostsApiResponse, Error>({
-    queryKey: ["posts", { ...activeFilters, page: currentPage }],
+    queryKey: ["posts", { ...queryKeyFiltersForPosts, page: currentPage }],
     queryFn: async ({ queryKey }) => {
-      const [, { page, companyId, role, pageSize, fromDate, toDate }] =
-        queryKey as [string, FiltersState & { page: number }];
+      const [, filtersFromKey] = queryKey as [
+        string,
+        QueryKeyPostFilters & { page: number }
+      ];
+      const { page, companyId, role, pageSize, fromDate, toDate } =
+        filtersFromKey;
 
       const limit = parseInt(pageSize, 10);
       if (isNaN(limit) || limit <= 0) {
-        console.error("Invalid pageSize from state:", pageSize);
         throw new Error("Invalid page size.");
       }
-
       let url = `/posts?skip=${(page - 1) * limit}&limit=${limit}`;
-
       if (companyId && companyId !== "1000")
         url += `&company_id=${encodeURIComponent(companyId)}`;
-
       if (role && role !== "All Roles")
         url += `&role=${encodeURIComponent(role)}`;
+      if (fromDate) url += `&start_date=${fromDate}`;
+      if (toDate) url += `&end_date=${toDate}`;
 
-      if (fromDate) {
-        url += `&start_date=${format(fromDate, "yyyy-MM-dd")}`;
-      }
-      if (toDate) {
-        url += `&end_date=${format(toDate, "yyyy-MM-dd")}`;
-      }
-
-      // console.log("React Query Fetching Posts:", url);
       const res = await apiClient.get(url);
       if (res.status < 200 || res.status >= 300) {
         const errData = res.data;
@@ -314,30 +347,21 @@ function Home() {
 
   const handlePageChange = useCallback(
     (page: number) => {
-      // Update page state (this changes the query key for posts query)
       setCurrentPage(page);
-
-      // Update URL search parameters
       const currentParams = new URLSearchParams(searchParams.toString());
       currentParams.set("page", page.toString());
-
       router.push(`/?${currentParams.toString()}`, { scroll: false });
     },
     [router, searchParams]
   );
 
-  // Handle applying filters from the sidebar
   const handleFiltersChangeFromSidebar = useCallback(
     (newFiltersFromSidebar: FiltersState) => {
-      // Update filter state (this changes the query key for posts query)
       setActiveFilters(newFiltersFromSidebar);
-      setCurrentPage(1); // Always reset to page 1 when filters change
-
-      // Construct new URL search parameters from the new filters
+      setCurrentPage(1);
       const newParams = new URLSearchParams();
-      newParams.set("page", "1"); // Set page to 1
+      newParams.set("page", "1");
       newParams.set("pageSize", newFiltersFromSidebar.pageSize);
-
       if (
         newFiltersFromSidebar.companyId &&
         newFiltersFromSidebar.companyId !== "1000"
@@ -362,27 +386,23 @@ function Home() {
           format(newFiltersFromSidebar.toDate, "yyyy-MM-dd")
         );
       }
-
       router.push(`/?${newParams.toString()}`, { scroll: false });
     },
-    [router]
+    [router] // setActiveFilters, setCurrentPage are stable
   );
 
-  // Called by ApplyFiltersCard when the company select value changes
   const handleCompanySelectedForRoleFetch = useCallback(
-    // Receives company ID string
     async (companyId: string) => {
-      // console.log("Company ID selected for role fetch:", companyId);
-      fetchRolesForCompany(companyId); // Call with ID
+      fetchRolesForCompany(companyId);
     },
     [fetchRolesForCompany]
   );
 
-  // Determine overall loading state for the UI
   const isInitialLoad =
     isCompaniesLoading ||
     (isPostsLoading && !isPostsPlaceholderData && !postData);
 
+  // ... (JSX remains the same) ...
   return (
     <div className="">
       <div className="flex flex-col w-full rounded-lg p-4 md:p-6 shadow-xl md:h-[calc(100vh-65px)] overflow-hidden">
@@ -393,8 +413,8 @@ function Home() {
           </p>
 
           <ApplyFiltersCard
-            availableCompanies={availableCompanies} // Data from useQuery
-            availableRoles={availableRoles} // Data from useState
+            availableCompanies={availableCompanies}
+            availableRoles={availableRoles}
             initialFilters={activeFilters}
             isLoadingRoles={isLoadingRoles}
             onCompanySelectedForRoleFetch={handleCompanySelectedForRoleFetch}
@@ -402,25 +422,21 @@ function Home() {
           />
         </div>
 
-        {/* Question List & Loading/Error States */}
         {isInitialLoad && (
           <div className="flex justify-center items-center flex-grow">
             <p>Loading data...</p>
           </div>
         )}
-        {!isInitialLoad &&
-          (isCompaniesError || isPostsError) && ( // Combined error display
-            <div className="text-red-500 p-4 bg-red-50 rounded-md flex-grow">
-              Error loading data:
-              {isCompaniesError &&
-                `Companies: ${companiesError?.message || "Unknown error"}`}
-              {isCompaniesError && isPostsError && " | "}
-              {isPostsError &&
-                `Posts: ${postsError?.message || "Unknown error"}`}
-            </div>
-          )}
+        {!isInitialLoad && (isCompaniesError || isPostsError) && (
+          <div className="text-red-500 p-4 bg-red-50 rounded-md flex-grow">
+            Error loading data:
+            {isCompaniesError &&
+              `Companies: ${companiesError?.message || "Unknown error"}`}
+            {isCompaniesError && isPostsError && " | "}
+            {isPostsError && `Posts: ${postsError?.message || "Unknown error"}`}
+          </div>
+        )}
 
-        {/* No data found message */}
         {!isInitialLoad &&
           !isCompaniesError &&
           !isPostsError &&
@@ -430,22 +446,19 @@ function Home() {
             </div>
           )}
 
-        {/* Render posts if available */}
-        {posts.length > 0 && ( // Render posts list if posts array is not empty (even with placeholder data)
+        {posts.length > 0 && (
           <>
-            {/* Optional: Indicator for background fetching/updating posts */}
             {isPostsFetching && isPostsPlaceholderData && (
               <div className="text-center text-sm text-muted-foreground mb-2">
                 Updating list...
               </div>
             )}
 
-            {/* Posts List */}
             <div className="space-y-5 overflow-y-auto pr-2 pb-4 flex-grow ">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {posts.map((post) => (
                   <PrimaryQuestionCard
-                    key={post.topic_id} // Use topic_id as key
+                    key={post.topic_id}
                     title={post.title}
                     topic_id={post.topic_id}
                     companies={post.companies}
@@ -466,7 +479,6 @@ function Home() {
               </div>
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="mt-auto pt-4 border-t bg-background z-10 flex-shrink-0">
                 <PaginationDemo

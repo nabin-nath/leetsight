@@ -1,11 +1,11 @@
 "use client";
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { toast } from "sonner";
+// import { toast } from "sonner"; // Not used, can remove
 import { Button } from "@/components/ui/button";
 import { DateRange } from "react-day-picker";
 
@@ -71,7 +71,7 @@ interface ApplyFiltersCardProps {
     fromDate?: Date;
     toDate?: Date;
   }) => void;
-  onCompanySelectedForRoleFetch: (companyId: string) => void; // Accepts company ID string
+  onCompanySelectedForRoleFetch: (companyId: string) => void;
 }
 
 export function ApplyFiltersCard({
@@ -83,78 +83,81 @@ export function ApplyFiltersCard({
   onCompanySelectedForRoleFetch,
 }: ApplyFiltersCardProps) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const isInitialCompanySetRef = useRef(true);
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
+    // Set defaultValues directly from initialFilters.
+    // The `useEffect` for `initialFilters` will handle subsequent updates.
     defaultValues: {
-      company: initialFilters.companyId || "1000",
-      role: initialFilters.role || "All Roles",
-      pageSize: initialFilters.pageSize || "10",
-    },
-  });
-
-  const { reset, watch } = form;
-
-  // --- Synchronization Effect ---
-  useEffect(() => {
-    // console.log(
-    //   "ApplyFiltersCard: Syncing form state with initialFilters:",
-    //   initialFilters
-    // );
-    reset({
       company: initialFilters.companyId,
       role: initialFilters.role,
       pageSize: initialFilters.pageSize,
+    },
+  });
+
+  const { reset, watch, setValue, getValues } = form;
+
+  // --- Effect to synchronize form with initialFilters prop changes ---
+  useEffect(() => {
+    reset({
+      company: initialFilters.companyId,
+      role: initialFilters.role, // This is crucial for restoring the role
+      pageSize: initialFilters.pageSize,
     });
     setDateRange({ from: initialFilters.fromDate, to: initialFilters.toDate });
-  }, [initialFilters, reset]); // Dependencies
+    // After syncing from props, mark that the company value is from initial set
+    isInitialCompanySetRef.current = true;
+  }, [initialFilters, reset]); // reset is stable
 
-  const watchCompany = watch("company");
+  const watchedCompany = watch("company"); // RHF's watch for company ID
 
-  // --- Effect to fetch roles when company filter changes in form ---
+  // --- Effect to fetch roles when company form field changes MANUALLY by user ---
   useEffect(() => {
-    // console.log(
-    //   "ApplyFiltersCard: Company filter changed in form:",
-    //   watchCompany
-    // );
+    // This effect should primarily react to USER changes in the company dropdown.
+    // console.log("ApplyFiltersCard: watchedCompany changed to:", watchedCompany, "isInitialSet:", isInitialCompanySetRef.current);
 
-    // Reset role to "All Roles" whenever the company selection changes,
-    // unless the new company is "All Companies" AND the role was already "All Roles".
-    // Use { shouldValidate: false, shouldDirty: false, shouldTouch: false }
-    // to minimize side effects during this state update.
-    if (
-      watchCompany !== "1000" ||
-      (watchCompany === "1000" && form.getValues("role") !== "All Roles")
-    ) {
-      form.setValue("role", "All Roles", {
-        shouldValidate: false,
-        shouldDirty: false,
-        shouldTouch: false,
-      });
+    // If isInitialCompanySetRef.current is true, it means 'watchedCompany' just got updated
+    // by the 'initialFilters' useEffect. We don't want to reset the role or re-fetch roles
+    // in this case, as 'initialFilters.role' should be respected.
+    if (isInitialCompanySetRef.current) {
+      isInitialCompanySetRef.current = false; // Reset the flag for subsequent manual changes
+      // If a specific company is set from initialFilters, still ensure roles are fetched for it
+      // This covers the case where the page loads with a company pre-selected via URL.
+      // The parent's fetchRolesForCompany is idempotent, so this is safe.
+      if (watchedCompany && watchedCompany !== "1000") {
+        // console.log("ApplyFiltersCard: Initial company set to", watchedCompany, " ensuring roles are fetched via parent.");
+        onCompanySelectedForRoleFetch(watchedCompany);
+      }
+      return; // Don't proceed to role reset logic if it was an initial set
     }
 
-    // Trigger role fetch if a specific company ID is selected
-    if (watchCompany && watchCompany !== "1000") {
-      // console.log(
-      //   "ApplyFiltersCard: Triggering parent role fetch for company ID:",
-      //   watchCompany
-      // );
-      onCompanySelectedForRoleFetch(watchCompany); // Pass the company ID string
-    } else if (watchCompany === "1000") {
-      // console.log(
-      //   "ApplyFiltersCard: 'All Companies' selected, roles will be 'All Roles'."
-      // );
-      // The parent component handles setting availableRoles state to ["All Roles"]
-      // when companyId is "1000", this state will propagate down via props.
-    }
-  }, [watchCompany, form, onCompanySelectedForRoleFetch]); // Dependencies
+    // If we reach here, the company change was likely manual by the user in the form.
+    // console.log("ApplyFiltersCard: Manual company change to:", watchedCompany);
 
-  // --- Submit Handler ---
+    // When company changes manually, reset role to "All Roles" in the form.
+    // The actual `availableRoles` will update via `onCompanySelectedForRoleFetch` and parent.
+    setValue("role", "All Roles", {
+      shouldValidate: false,
+      shouldDirty: true, // Make the form dirty as user made a change
+      shouldTouch: true,
+    });
+
+    // Trigger role fetch for the newly selected company.
+    if (watchedCompany && watchedCompany !== "1000") {
+      // console.log("ApplyFiltersCard: Manual change, triggering parent role fetch for company ID:", watchedCompany);
+      onCompanySelectedForRoleFetch(watchedCompany);
+    } else if (watchedCompany === "1000") {
+      // console.log("ApplyFiltersCard: Manual change to 'All Companies', parent will handle role reset.");
+      // Call onCompanySelectedForRoleFetch even for "1000" so parent can ensure availableRoles is ["All Roles"]
+      onCompanySelectedForRoleFetch("1000");
+    }
+  }, [watchedCompany, setValue, onCompanySelectedForRoleFetch]); // `getValues` not needed as a dep
+
   const onSubmit = (data: z.infer<typeof FormSchema>) => {
     // console.log("ApplyFiltersCard: Form submitted with data:", data);
-
     onFiltersChange({
-      companyId: data.company, // company field holds the ID string
+      companyId: data.company,
       role: data.role,
       pageSize: data.pageSize,
       fromDate: dateRange?.from,
@@ -192,7 +195,9 @@ export function ApplyFiltersCard({
                       >
                         {field.value
                           ? availableCompanies.find(
-                              (company) => company.id == field.value
+                              // Ensure comparison is consistent (string to string or number to number)
+                              (company) =>
+                                String(company.id) === String(field.value)
                             )?.name
                           : "Select company"}
                         <ChevronsUpDown className="opacity-50" />
@@ -210,9 +215,13 @@ export function ApplyFiltersCard({
                         <CommandGroup>
                           {availableCompanies.map((company) => (
                             <CommandItem
-                              value={String(company.name)}
+                              value={String(company.name)} // Use name for searching/filtering in Command
                               key={company.id}
                               onSelect={() => {
+                                // When user selects a new company:
+                                // `isInitialCompanySetRef.current` will be false here.
+                                // The `useEffect` watching `watchedCompany` will handle
+                                // role reset and calling `onCompanySelectedForRoleFetch`.
                                 form.setValue("company", String(company.id));
                               }}
                             >
@@ -220,7 +229,8 @@ export function ApplyFiltersCard({
                               <Check
                                 className={cn(
                                   "ml-auto",
-                                  company.name === field.value
+                                  // Compare selected field value with current company's ID
+                                  String(company.id) === String(field.value)
                                     ? "opacity-100"
                                     : "opacity-0"
                                 )}
@@ -246,12 +256,28 @@ export function ApplyFiltersCard({
                 <FormLabel>Role</FormLabel>
                 <Select
                   onValueChange={field.onChange}
-                  value={field.value}
-                  disabled={watchCompany === "1000" || isLoadingRoles}
+                  value={field.value} // This value should be correctly synced by initialFilters effect
+                  disabled={
+                    (watchedCompany === "1000" &&
+                      availableRoles.length === 1 &&
+                      availableRoles[0] === "All Roles") ||
+                    isLoadingRoles
+                  }
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
+                      {/* Display placeholder if value is "All Roles" and it's the only option, or if loading */}
+                      <SelectValue
+                        placeholder={
+                          (field.value === "All Roles" &&
+                            availableRoles.length === 1 &&
+                            availableRoles[0] === "All Roles" &&
+                            watchedCompany !== "1000") ||
+                          isLoadingRoles
+                            ? "Select role" // More specific placeholder logic if needed
+                            : field.value || "Select role" // Fallback
+                        }
+                      />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -259,14 +285,18 @@ export function ApplyFiltersCard({
                       <SelectItem value="loading" disabled>
                         Loading roles...
                       </SelectItem>
-                    ) : (
+                    ) : availableRoles.length > 0 ? (
                       availableRoles
-                        .filter((role) => role && role !== "N/A")
+                        .filter((role) => role && role !== "N/A") // Keep this filter
                         .map((role) => (
                           <SelectItem key={role} value={role}>
                             {role}
                           </SelectItem>
                         ))
+                    ) : (
+                      <SelectItem value="no-roles" disabled>
+                        No roles available
+                      </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
@@ -275,7 +305,7 @@ export function ApplyFiltersCard({
             )}
           />
 
-          {/* Date Range (using local state) */}
+          {/* Date Range */}
           <FormItem className="flex flex-col">
             <FormLabel>Date Range</FormLabel>
             <DatePickerWithRange
@@ -311,7 +341,6 @@ export function ApplyFiltersCard({
             )}
           />
 
-          {/* Apply Button */}
           <Button type="submit" className="md:mt-auto">
             Apply Filters
           </Button>
