@@ -123,6 +123,7 @@ export default function PostDetailPage() {
       return true;
     } catch (e) {
       toast.error("Not able to update reaction, kindly try again later.");
+      console.error("Unable to delete reactions ", e)
       return false;
     }
   };
@@ -147,6 +148,7 @@ export default function PostDetailPage() {
       return true;
     } catch (e) {
       toast.error("Not able to update reaction, kindly try again later.");
+      console.error("Unable to update reactions ", e);
       return false;
     }
   };

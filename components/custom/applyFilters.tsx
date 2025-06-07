@@ -24,7 +24,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { DatePickerWithRange } from "../ui/DatePickerWithRange";
+import { Check, ChevronsUpDown } from "lucide-react";
+
+import { cn } from "@/lib/utils";
 
 const FormSchema = z.object({
   company: z.string(), // Company ID string
@@ -163,21 +179,59 @@ export function ApplyFiltersCard({
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Company</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select company" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {availableCompanies.map((company) => (
-                      // Make sure value is the ID string
-                      <SelectItem key={company.id} value={String(company.id)}>
-                        {company.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          "w-[200px] justify-between",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value
+                          ? availableCompanies.find(
+                              (company) => company.id == field.value
+                            )?.name
+                          : "Select company"}
+                        <ChevronsUpDown className="opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[200px] p-0">
+                    <Command>
+                      <CommandInput
+                        placeholder="Search company..."
+                        className="h-9"
+                      />
+                      <CommandList>
+                        <CommandEmpty>No Company found</CommandEmpty>
+                        <CommandGroup>
+                          {availableCompanies.map((company) => (
+                            <CommandItem
+                              value={String(company.name)}
+                              key={company.id}
+                              onSelect={() => {
+                                form.setValue("company", String(company.id));
+                              }}
+                            >
+                              {company.name}
+                              <Check
+                                className={cn(
+                                  "ml-auto",
+                                  company.name === field.value
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
                 <FormMessage />
               </FormItem>
             )}
