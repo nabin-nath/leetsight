@@ -1,15 +1,15 @@
-import "./globals.css";
-import { Inter } from "next/font/google";
-import { ThemeProvider } from "../components/theme-provider";
+import { AppSidebar } from "@/components/ui/AppSidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { SiteHeader } from "@/components/ui/SiteHeader";
+import { Toaster } from "@/components/ui/sonner";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata } from "next";
 import { SessionProvider } from "next-auth/react";
-import { Analytics } from "@vercel/analytics/next";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/ui/AppSidebar";
-import { Toaster } from "@/components/ui/sonner";
-import { SiteHeader } from "@/components/ui/SiteHeader";
-import { SpeedInsights } from "@vercel/speed-insights/next";
-import Head from "next/head";
+import { Inter } from "next/font/google";
+import { ThemeProvider } from "../components/theme-provider";
+import "./globals.css";
+import StoreProvider from "./StoreProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -51,25 +51,27 @@ const layout = ({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <SessionProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <SidebarProvider>
-              <AppSidebar variant="inset" />
-              <SidebarInset>
-                <SiteHeader />
-                <div className="flex flex-1 flex-col">
-                  {children}
-                  <Toaster />
-                  <Analytics />
-                  <SpeedInsights />
-                </div>
-              </SidebarInset>
-            </SidebarProvider>
-          </ThemeProvider>
+          <StoreProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <SidebarProvider>
+                <AppSidebar variant="inset" />
+                <SidebarInset>
+                  <SiteHeader />
+                  <div className="flex flex-1 flex-col">
+                    {children}
+                    <Toaster />
+                    <Analytics />
+                    <SpeedInsights />
+                  </div>
+                </SidebarInset>
+              </SidebarProvider>
+            </ThemeProvider>
+          </StoreProvider>
         </SessionProvider>
       </body>
     </html>

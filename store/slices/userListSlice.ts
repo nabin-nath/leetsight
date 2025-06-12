@@ -1,0 +1,148 @@
+// src/store/slices/userListSlice.ts (or a similar path)
+
+import apiClient from "@/lib/apiClient"; // Your API client
+import { UserListItem, UserListsApiResponse } from "@/types/userList"; // Your types
+import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
+
+interface UserListState {
+  lists: UserListItem[];
+  totalRecords: number;
+  totalPages: number;
+  currentPage: number;
+  hasNextPage: boolean;
+  status: "idle" | "loading" | "succeeded" | "failed"; // For fetch status
+  error: string | null;
+}
+
+const initialState: UserListState = {
+  lists: [],
+  totalRecords: 0,
+  totalPages: 1,
+  currentPage: 1,
+  hasNextPage: false,
+  status: "idle", // Initially idle, not yet fetched
+  error: null,
+};
+
+// Async thunk for fetching user lists
+export const fetchUserLists = createAsyncThunk<
+  UserListsApiResponse, // Return type of the payload creator
+  void, // First argument to the payload creator (void if no args)
+  { rejectValue: string } // Types for ThunkAPI
+>(
+  "userLists/fetchUserLists", // Action type prefix
+  async (_, { getState, rejectWithValue }) => {
+    // console.log("Starting fetchUserLists thunk...");
+    const state = getState() as { userLists: UserListState }; // Get current state if needed
+    // console.log("Current userLists state:", state.userLists);
+    // Prevent re-fetch if already succeeded or loading, unless forced (add force logic if needed)
+    if (
+      state?.userLists?.status === "succeeded" ||
+      state?.userLists?.status === "loading"
+    ) {
+      // console.log(
+      //   "User lists already fetched or loading. Skipping fetch."
+      // )
+      // If you want to allow forced refetch, you'd pass a parameter to the thunk
+      // and check it here. For "fetch once", this is usually sufficient.
+      // console.log("User lists already fetched or loading. Skipping.");
+      // To make it truly "fetch once", we return the current data or handle it.
+      // However, createAsyncThunk expects a promise. A common pattern is to
+      // let it proceed and handle idempotency in the component dispatching it,
+      // or return a specific value that indicates no fetch was made.
+      // For simplicity here, we'll let it be dispatched and rely on component logic
+      // not to dispatch if status is 'succeeded'.
+      // Alternatively, to truly stop it here, you might need a custom condition:
+      // if (state.userLists.status === 'succeeded') {
+      //    return state.userLists; // This would require matching UserListState to UserListsApiResponse
+      // }
+    }
+
+    try {
+      // console.log("Fetching user lists via Redux Thunk...");
+      const response = await apiClient.get<UserListsApiResponse>(
+        "/users/me/lists?skip=0&limit=100"
+      );
+      // console.log("User lists fetched successfully:", response.data);
+      if (response.status < 200 || response.status >= 300) {
+        return rejectWithValue(
+          response.data.error || "Failed to fetch user lists"
+        );
+      }
+      return response.data;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "An unknown error occurred";
+      return rejectWithValue(message);
+    }
+  }
+);
+
+const userListSlice = createSlice({
+  name: "userLists",
+  initialState,
+  reducers: {
+    // Reducer to add a list optimistically (example)
+    addListOptimistic: (state, action: PayloadAction<UserListItem>) => {
+      state.lists.unshift(action.payload); // Add to beginning
+      state.totalRecords += 1;
+      // You might need to adjust other pagination state if this affects it significantly
+    },
+    // Reducer to update a list optimistically
+    updateListOptimistic: (state, action: PayloadAction<UserListItem>) => {
+      const index = state.lists.findIndex(
+        (list) => list.id === action.payload.id
+      );
+      if (index !== -1) {
+        state.lists[index] = action.payload;
+      }
+    },
+    // Reducer to remove a list optimistically
+    removeListOptimistic: (state, action: PayloadAction<string>) => {
+      // listId
+      state.lists = state.lists.filter((list) => list.id !== action.payload);
+      state.totalRecords -= 1;
+    },
+    // Reducer to directly set lists (e.g., after a create/update returns all lists)
+    setAllLists: (state, action: PayloadAction<UserListsApiResponse>) => {
+      state.lists = action.payload.items;
+      state.totalRecords = action.payload.total_records;
+      state.totalPages = action.payload.total_pages;
+      state.currentPage = action.payload.current_page;
+      state.hasNextPage = action.payload.has_next_page;
+      state.status = "succeeded"; // Mark as succeeded if directly setting
+      state.error = null;
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchUserLists.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(fetchUserLists.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.lists = action.payload.items;
+        state.totalRecords = action.payload.total_records;
+        state.totalPages = action.payload.total_pages;
+        state.currentPage = action.payload.current_page;
+        state.hasNextPage = action.payload.has_next_page;
+        state.error = null;
+      })
+      .addCase(fetchUserLists.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload ?? "Failed to fetch lists"; // Use rejectValue
+      });
+  },
+});
+
+// Export actions
+export const {
+  addListOptimistic,
+  updateListOptimistic,
+  removeListOptimistic,
+  setAllLists,
+} = userListSlice.actions;
+
+// Export reducer
+export default userListSlice.reducer;
