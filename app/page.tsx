@@ -18,6 +18,7 @@ import {
 } from "@/store/slices/rolesSlice";
 import { fetchUserLists } from "@/store/slices/userListSlice";
 import { Filters as ReduxFiltersState } from "@/types"; // Use Filters from types
+import { LoaderPinwheel } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 // Keep local helper functions like formatDateDisplay, parseDateParam
@@ -332,7 +333,10 @@ function Home() {
 
         {isInitialLoad && (
           <div className="flex justify-center items-center flex-grow">
-            <p>Loading data...</p>
+            Loading data
+            <span className="animate-spin ml-2">
+              <LoaderPinwheel />
+            </span>
           </div>
         )}
         {!isInitialLoad && overallError && (

@@ -320,7 +320,7 @@ export default function PostDetailPage() {
         </Link>
       </div>
 
-      <div className="p-6 rounded-2xl border bg-card shadow-lg space-y-4">
+      <div className="p-6 rounded-2xl border bg-card shadow-md space-y-4">
         <h1 className="text-2xl font-bold">{post.title}</h1>
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           {post.companies.length > 0 && (
@@ -356,7 +356,7 @@ export default function PostDetailPage() {
           {typeof post.yoe === "number" && post.yoe > 0 && (
             <Badge variant="secondary">
               <Flame size={12} className="mr-1" />
-              {post.yoe} YoE
+              {post.yoe} Years of exp
             </Badge>
           )}
           {typeof post.views === "number" && post.views > 0 && (

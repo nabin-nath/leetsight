@@ -18,6 +18,7 @@ import {
   RiThumbUpLine,
 } from "react-icons/ri";
 import { toast } from "sonner";
+import { HoverCardCustom } from "../card/HoverCard";
 
 interface ListDetailViewProps {
   listDetail: ListDetail | null;
@@ -93,14 +94,10 @@ export const ListDetailView: React.FC<ListDetailViewProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="pb-4 border-b">
+      <div className="p-4 rounded-2xl border bg-card shadow-md space-y-4">
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-3xl font-bold">{listDetail.name}</h1>
-          {listDetail.is_public ? (
-            <Globe size={20} className="text-green-500" />
-          ) : (
-            <Lock size={20} className="text-orange-500" />
-          )}
+          {listDetail.is_public ? <Globe size={20} /> : <Lock size={20} />}
         </div>
         <p className="text-muted-foreground">{listDetail.description}</p>
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mt-3">
@@ -110,45 +107,53 @@ export const ListDetailView: React.FC<ListDetailViewProps> = ({
             </Badge>
           ))}
         </div>
-        <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-3">
-          <span>
-            <Eye size={14} className="inline mr-1" /> {listDetail.views} views
-          </span>
-          <span>
-            <ListChecks size={14} className="inline mr-1" />{" "}
-            {listDetail.questions_count} questions
-          </span>
-          {/* Add Like/Dislike for the list itself if API supports and you want it */}
-          {/* <Button variant="ghost" size="sm"><ThumbsUp size={14} className="mr-1"/> {listDetail.likes_count}</Button> */}
-          {/* <Button variant="ghost" size="sm"><ThumbsDown size={14} className="mr-1"/> {listDetail.dislikes_count}</Button> */}
-          {/* Edit button if list belongs to current user */}
-          {/* <Button variant="outline" size="sm"><Edit3 size={14} className="mr-1"/> Edit List</Button> */}
+        <div className="flex justify-between space-x-4 text-sm text-muted-foreground mt-3">
+          <div className="flex items-center gap-3">
+            <span>
+              <Eye size={14} className="inline mr-1" /> {listDetail.views} views
+            </span>
+            <span>
+              <ListChecks size={14} className="inline mr-1" />{" "}
+              {listDetail.questions_count} questions
+            </span>
 
-          <div className="flex items-center justify-between">
-            <div className="flex gap-2 mt-auto">
-              <div
-                className="flex p-1 rounded-md items-center gap-1 cursor-pointer hover:bg-accent"
-                onClick={() => {}}
-              >
-                {listDetail.is_liked ? (
-                  <RiThumbUpFill size={16} />
-                ) : (
-                  <RiThumbUpLine size={16} />
-                )}{" "}
-                {listDetail.likes_count}
-              </div>
-              <div
-                className="flex p-1 rounded-md items-center gap-1 cursor-pointer hover:bg-accent"
-                onClick={() => {}}
-              >
-                {listDetail.is_liked ? (
-                  <RiThumbDownFill size={16} />
-                ) : (
-                  <RiThumbDownLine size={16} />
-                )}{" "}
-                {listDetail.dislikes_count}
+            <div className="flex justify-between">
+              <div className="flex mt-auto">
+                <div
+                  className="flex p-1 rounded-md items-center gap-1 cursor-pointer hover:bg-accent"
+                  onClick={() => {}}
+                >
+                  {listDetail.is_liked ? (
+                    <RiThumbUpFill size={16} />
+                  ) : (
+                    <RiThumbUpLine size={16} />
+                  )}{" "}
+                  {listDetail.likes_count}
+                </div>
+                <div
+                  className="flex p-1 rounded-md items-center gap-1 cursor-pointer hover:bg-accent"
+                  onClick={() => {}}
+                >
+                  {listDetail.is_liked ? (
+                    <RiThumbDownFill size={16} />
+                  ) : (
+                    <RiThumbDownLine size={16} />
+                  )}{" "}
+                  {listDetail.dislikes_count}
+                </div>
               </div>
             </div>
+          </div>
+
+          <div className="flex items-center text-sm font-medium">
+            <span className="mr-1">Created by -</span>
+            {listDetail.user && (
+              <HoverCardCustom
+                title={`@${listDetail.user.username}`}
+                picture_url={listDetail.user.picture_url}
+                full_name={listDetail.user.full_name}
+              />
+            )}
           </div>
         </div>
       </div>

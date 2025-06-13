@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Question } from "@/types";
-import { Briefcase, Building2 } from "lucide-react";
+import { Briefcase, Building2, LoaderCircle } from "lucide-react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import { IoBookmark, IoBookmarkOutline, IoCheckbox } from "react-icons/io5";
@@ -27,7 +27,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   return (
     <div className="p-4 border rounded-xl shadow-sm space-y-3 bg-card text-card-foreground">
       <h3 className="text-lg flex justify-between gap-2">
-        <div className="flex items-start gap-2">
+        <div className="flex items-start gap-2 w-[85%]">
           <div className="flex items-center justify-center text-secondary-foreground rounded-full min-w-[36px] min-h-[36px]">
             {theme === "light" ? (
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
@@ -143,7 +143,9 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
         >
           {question.is_done ? "Viewed" : "Mark as viewed?"}
           {isTogglingDone ? (
-            <span className="animate-spin">...</span>
+            <span className="animate-spin">
+              <LoaderCircle />
+            </span>
           ) : question.is_done ? (
             <IoCheckbox size={15} />
           ) : (

@@ -9,6 +9,13 @@ export interface CompanyOption {
   id: string | number; // Keeping this flexible for now
 }
 
+export interface UserProfile {
+  id: string;
+  username: string;
+  picture_url: string;
+  full_name: string;
+}
+
 export interface ProcessedPost {
   topic_id: number;
   title: string;
@@ -132,7 +139,8 @@ export interface UserListItem {
   questions_count: number;
   likes_count: number;
   dislikes_count: number;
-  is_liked: boolean | null; // User's like status for THIS LIST
+  is_liked: boolean | null;
+  user: UserProfile | null;
 }
 
 export interface QuestionInList {

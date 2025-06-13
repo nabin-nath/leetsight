@@ -111,11 +111,6 @@ const listDetailSlice = createSlice({
           state.selectedListDetail = action.payload;
         }
       )
-      .addCase(fetchListDetails.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload ?? "Failed to load list details";
-        state.selectedListDetail = null;
-      })
       .addCase(removeQuestionFromListView.fulfilled, (state, action) => {
         if (
           state.selectedListDetail &&
@@ -129,6 +124,25 @@ const listDetailSlice = createSlice({
         }
         // Also need to update the allListsSlice.myLists or publicLists for the question count.
         // This usually requires dispatching another action or handling in component.
+      })
+      .addCase(fetchListDetails.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.payload ?? "Failed to fetch list details";
+        // If the failed fetch was for the currently displayed list detail, clear it
+        // or mark it as invalid to prevent re-fetch loop based on ID mismatch.
+        // action.meta.arg is the listId that was attempted.
+        if (state.selectedListDetail?.id === action.meta.arg) {
+          // Option A: Clear it fully (safest to prevent loop if ID check is the main guard)
+          // state.selectedListDetail = null;
+          // Option B: Keep the old data but ensure the ID might not match,
+          // or rely on status 'failed' to prevent re-fetch in the component.
+          // For simplicity, clearing is often safer if the component re-fetches based on ID mismatch.
+          // However, if the component checks status === 'failed' correctly, this might not be needed.
+          // The component's useEffect check `selectedListDetail?.id !== selectedListIdFromUrl`
+          // combined with `listDetailStatus === 'idle'` or `'failed'` should be the main guard.
+          // If status is 'failed', the component should ideally show an error and a retry button,
+          // not automatically re-fetch via this useEffect.
+        }
       });
   },
 });

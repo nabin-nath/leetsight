@@ -8,19 +8,24 @@ import {
   clearSelectedList,
   fetchListDetails,
 } from "@/store/slices/listDetailSlice";
-import { LayoutGrid } from "lucide-react"; // Icons for toggle
+import { LayoutGrid } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export default function ListsPage() {
   const dispatch = useAppDispatch();
   const { data: session } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams(); // Hook to access URL query parameters
+  const lastFetchedListIdRef = useRef<string | null>(null);
+  const selectedListIdFromUrl = searchParams.get("id"); // Get 'id' from ?id=...
+
   const [activeListType, setActiveListType] = useState<"public" | "my">(
     "public"
   );
-  const [selectedListId, setSelectedListId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(""); // For sidebar search
 
   const { myLists, publicLists } = useAppSelector((state) => state.allLists);
   const {
@@ -30,23 +35,19 @@ export default function ListsPage() {
   } = useAppSelector((state) => state.listDetail);
 
   const listsToDisplay = activeListType === "my" ? myLists : publicLists;
+  const lastDispatchedFetchIdRef = useRef<string | null>(null);
 
-  // Fetch initial lists based on active type
   useEffect(() => {
-    const fetchInitialData = (type: "public" | "my") => {
-      const currentListState = type === "my" ? myLists : publicLists;
-      if (currentListState.status === "idle") {
-        if (type === "my" && session) {
-          // Only fetch my lists if logged in
-          console.log("Fetching my lists for user:", session.user?.email);
-          dispatch(fetchMyLists({ skip: 0, limit: 20, searchTerm }));
-        } else if (type === "public") {
-          console.log("Fetching public lists with search term:", searchTerm);
-          dispatch(fetchPublicLists({ skip: 0, limit: 20, searchTerm }));
-        }
+    if (activeListType === "my") {
+      if (session && myLists.status === "idle") {
+        dispatch(fetchMyLists({ skip: 0, limit: 20 }));
       }
-    };
-    fetchInitialData(activeListType);
+    } else {
+      // public
+      if (publicLists.status === "idle") {
+        dispatch(fetchPublicLists({ skip: 0, limit: 20 }));
+      }
+    }
   }, [
     activeListType,
     dispatch,
@@ -54,78 +55,153 @@ export default function ListsPage() {
     publicLists.status,
     session,
     searchTerm,
-  ]); // Added searchTerm
+  ]);
 
-  // Fetch list details when a list is selected
+  // Fetch list details when selectedListIdFromUrl changes
   useEffect(() => {
-    if (selectedListId) {
-      dispatch(fetchListDetails(selectedListId));
-    } else {
-      dispatch(clearSelectedList()); // Clear details if no list is selected
-    }
-  }, [selectedListId, dispatch]);
+    if (selectedListIdFromUrl) {
+      // Should we attempt to fetch?
+      let shouldDispatchFetch = false;
 
-  const handleListSelect = useCallback((listId: string) => {
-    setSelectedListId(listId);
-  }, []);
-
-  const handleSearch = useCallback(
-    (term: string) => {
-      setSearchTerm(term);
-      setSelectedListId(null); // Clear selected list on new search
-      // Trigger refetch by changing activeListType slightly or dispatching directly with new search term
-      // Forcing a refetch when search term changes:
-      if (activeListType === "my" && session) {
-        dispatch(fetchMyLists({ skip: 0, limit: 20, searchTerm: term }));
-      } else if (activeListType === "public") {
-        dispatch(fetchPublicLists({ skip: 0, limit: 20, searchTerm: term }));
+      if (listDetailStatus === "loading") {
+        // If loading, only update our ref if the loading is for the current URL ID.
+        // This prevents a new dispatch if user navigates while another ID is loading.
+        if (lastDispatchedFetchIdRef.current !== selectedListIdFromUrl) {
+          // This case means URL changed while a *different* list was loading.
+          // We might want to cancel the previous or let it finish, then fetch new.
+          // For now, we just note that we *would* want to fetch the new one once current loading stops.
+          // This logic could be more complex if cancellation is needed.
+        }
+      } else if (selectedListIdFromUrl !== lastDispatchedFetchIdRef.current) {
+        // Case 1: The ID in the URL is different from the one we last dispatched a fetch for.
+        // This means user navigated to a new list, or it's the first load with this ID.
+        // We should also check if the data in store is already for this new ID and succeeded.
+        if (
+          selectedListDetail?.id !== selectedListIdFromUrl ||
+          listDetailStatus !== "succeeded"
+        ) {
+          shouldDispatchFetch = true;
+        } else {
+          lastDispatchedFetchIdRef.current = selectedListIdFromUrl; // Align ref with current URL ID as data is present
+        }
+      } else if (
+        listDetailStatus === "failed" &&
+        selectedListIdFromUrl === lastDispatchedFetchIdRef.current
+      ) {
+        // Case 2: Last dispatch for this SAME ID failed.
+        // We DO NOT automatically re-dispatch here to prevent loops.
+        // A user action (e.g., retry button) should trigger a re-fetch.
+      } else if (
+        listDetailStatus === "idle" &&
+        selectedListIdFromUrl !== lastDispatchedFetchIdRef.current
+      ) {
+        // Case 3: Status is idle (e.g. after clearSelectedList) and the ID is new compared to last dispatch
+        // This is largely covered by Case 1, but explicit 'idle' check can be a fallback.
+        shouldDispatchFetch = true;
       }
+
+      if (shouldDispatchFetch) {
+        dispatch(fetchListDetails(selectedListIdFromUrl));
+        lastDispatchedFetchIdRef.current = selectedListIdFromUrl; // Record that we are dispatching for this ID.
+      }
+    } else {
+      // No selectedListIdFromUrl in the URL
+      if (selectedListDetail && listDetailStatus !== "idle") {
+        dispatch(clearSelectedList());
+        lastDispatchedFetchIdRef.current = null; // Reset when selection is cleared
+      } else {
+        // console.log(
+        //   "[ListDetailEffect] No URL ID and no detail to clear or already idle."
+        // );
+      }
+    }
+  }, [
+    selectedListIdFromUrl,
+    dispatch,
+    listDetailStatus,
+    selectedListDetail?.id,
+  ]);
+
+  // Handler for when a list is selected in the sidebar
+  const handleListSelect = useCallback(
+    (listId: string) => {
+      // --- MODIFICATION: Update URL instead of local state ---
+      // Preserve other query params like 'type' or 'search' if they exist and are relevant
+      const currentQuery = new URLSearchParams(
+        Array.from(searchParams.entries())
+      );
+      currentQuery.set("id", listId);
+      router.push(`/lists?${currentQuery.toString()}`);
+      // The useEffect watching `selectedListIdFromUrl` will then fetch details.
     },
-    [activeListType, dispatch, session]
+    [router, searchParams]
+  );
+
+  // Handler for sidebar search input
+  const handleSearch = useCallback(
+    (newSearchTerm: string) => {
+      setSearchTerm(newSearchTerm);
+      // When searching, clear the selected list ID from the URL
+      // to show the placeholder and fetch new filtered list of lists.
+      const currentQuery = new URLSearchParams(
+        Array.from(searchParams.entries())
+      );
+      currentQuery.delete("id"); // Remove selected list ID
+      // You might want to keep or reset the search term in the URL as well
+      // currentQuery.set("q", newSearchTerm); // Example
+      router.push(`/lists?${currentQuery.toString()}`);
+
+      // The useEffect for fetching sidebar lists will trigger due to searchTerm change
+    },
+    [router, searchParams]
   );
 
   const handleToggleListType = (type: "public" | "my") => {
     if (type === "my" && !session) {
-      // Redirect to login or show message
       toast.error("Please login to view your lists.");
       return;
     }
     setActiveListType(type);
-    setSelectedListId(null); // Clear selected list when toggling type
-    setSearchTerm(""); // Clear search term
+    setSearchTerm(""); // Clear search term when toggling type
+
+    // --- MODIFICATION: Update URL to remove list 'id' and potentially 'q' (search term) ---
+    const currentQuery = new URLSearchParams(
+      Array.from(searchParams.entries())
+    );
+    currentQuery.delete("id");
+    currentQuery.delete("q"); // Assuming 'q' is your search query param if you add it
+    // Optionally, you could add `type=public` or `type=my` to the URL too
+    // currentQuery.set("type", type);
+    router.push(`/lists?${currentQuery.toString()}`);
+    // The useEffect for fetching sidebar lists will trigger.
   };
 
-  // Responsive: On small screens, maybe only show sidebar or detail, not both.
-  // This example uses a simple CSS-driven approach for larger screens.
-  // For true responsive toggle, you'd use JS to manage visibility.
-  const showDetailView = selectedListId || listDetailStatus === "loading";
+  // Determine if detail view should be shown (for responsive handling)
+  const showDetailView =
+    !!selectedListIdFromUrl || listDetailStatus === "loading";
 
   return (
     <div className="flex flex-col md:flex-row h-[calc(100vh-var(--header-height,65px))]">
-      {" "}
-      {/* Adjust for your header height */}
       <ListSidebar
         activeListType={activeListType}
         onToggleListType={handleToggleListType}
         lists={listsToDisplay.items}
         status={listsToDisplay.status}
         error={listsToDisplay.error}
-        selectedListId={selectedListId}
+        selectedListId={selectedListIdFromUrl} // Pass derived ID
         onListSelect={handleListSelect}
         onSearch={handleSearch}
-        // Pass pagination handlers if implementing infinite scroll/load more for sidebar
       />
       <main
         className={`flex-1 overflow-auto p-4 md:p-6 transition-all duration-300 ease-in-out ${
-          showDetailView ? "block" : "hidden md:block" // Show detail on mobile if selected
+          showDetailView ? "block" : "hidden md:block"
         }`}
       >
-        {selectedListId ? (
+        {selectedListIdFromUrl ? ( // Check if there's an ID in the URL
           <ListDetailView
-            listDetail={selectedListDetail}
+            listDetail={selectedListDetail} // This will be null initially if ID just changed
             status={listDetailStatus}
             error={listDetailError}
-            // Add other necessary props like handlers for question actions
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center">
