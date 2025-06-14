@@ -39,7 +39,7 @@ const createFetchListsThunk = (listType: "my" | "public") => {
   >(
     `allLists/fetch${listType === "my" ? "My" : "Public"}Lists`,
     async (params, { rejectWithValue, getState }) => {
-      console.log(`Fetching ${listType} lists with params:`, params);
+      // console.log(`Fetching ${listType} lists with params:`, params);
       const currentListState =
         listType === "my"
           ? getState().allLists.myLists
@@ -51,10 +51,10 @@ const createFetchListsThunk = (listType: "my" | "public") => {
       queryParams.append("limit", String(params.limit || 20));
 
       try {
-        console.log(
-          `Making API call to ${endpoint} with params:`,
-          queryParams.toString()
-        );
+        // console.log(
+        //   `Making API call to ${endpoint} with params:`,
+        //   queryParams.toString()
+        // );
         const response = await apiClient.get<UserListsApiResponse>(
           `${endpoint}?${queryParams.toString()}`
         );

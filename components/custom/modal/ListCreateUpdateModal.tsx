@@ -79,7 +79,7 @@ export function ListCreateUpdateModal({
   };
 
   const handleSubmit = (e: React.FormEvent) => {
-    console.log("submit called");
+    // console.log("submit called");
     e.preventDefault();
     if (type === "create") {
       dispatch(

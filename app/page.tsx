@@ -99,10 +99,10 @@ function Home() {
   } = useAppSelector((state) => state.posts);
 
   useEffect(() => {
-    console.log("inside use effect to fetch user lists");
+    // console.log("inside use effect to fetch user lists");
     // Fetch user lists if the user is authenticated and lists haven't been fetched yet
     if (authStatus === "authenticated" && userListStatus === "idle") {
-      console.log("Fetching user lists for authenticated user");
+      // console.log("Fetching user lists for authenticated user");
       dispatch(fetchMyLists({ skip: 0, limit: 20 }));
     }
   }, [authStatus, userListStatus, dispatch]);

@@ -171,7 +171,7 @@ export const updatePostReaction = createAsyncThunk<
         return rejectWithValue(
           response.data.error || "Failed to update reaction"
         );
-      }      
+      }
       return { ...response.data, originalAction: action };
     } catch (error) {
       const message =
@@ -295,14 +295,14 @@ const postDetailSlice = createSlice({
       .addCase(addQuestionToList.pending, (state, action) => {
         // Optionally, set a loading state for this specific question or list
         // e.g., state.questionStatus[action.meta.arg.questionId] = 'saving_to_list';
-        console.log(
-          `Adding question ${action.meta.arg.questionId} to list ${action.meta.arg.listId}...`
-        );
+        // console.log(
+        //   `Adding question ${action.meta.arg.questionId} to list ${action.meta.arg.listId}...`
+        // );
       })
       .addCase(addQuestionToList.fulfilled, (state, action) => {
         // Handle success - maybe update list's question_count if returned
         // Or if the list item itself is returned, update it in the userListSlice (would require dispatching another action)
-        console.log("Question added to list successfully:", action.payload);
+        // console.log("Question added to list successfully:", action.payload);
         // If the backend returns the updated list, you might dispatch an action
         // to update the userListSlice here, or the component can refetch userLists.
         // Example: if (action.payload.list) { /* dispatch action to update userListSlice */ }
@@ -313,24 +313,24 @@ const postDetailSlice = createSlice({
       })
       .addCase(updateQuestionInList.pending, (state, action) => {
         const { questionId, listId, action: listAction } = action.meta.arg;
-        console.log(
-          `${
-            listAction === "add" ? "Adding" : "Removing"
-          } question ${questionId} ${
-            listAction === "add" ? "to" : "from"
-          } list ${listId}...`
-        );
+        // console.log(
+        //   `${
+        //     listAction === "add" ? "Adding" : "Removing"
+        //   } question ${questionId} ${
+        //     listAction === "add" ? "to" : "from"
+        //   } list ${listId}...`
+        // );
         // You could set a specific loading state if needed:
         // state.questionStatus[questionId] = listAction === 'add' ? 'saving_to_list' : 'removing_from_list';
       })
       .addCase(updateQuestionInList.fulfilled, (state, action) => {
         const { message, list_id, question_id, action_performed } =
           action.payload;
-        console.log(
-          `Question ${question_id} successfully ${action_performed} ${
-            action_performed === "add" ? "to" : "from"
-          } list ${list_id}: ${message}`
-        );
+        // console.log(
+        //   `Question ${question_id} successfully ${action_performed} ${
+        //     action_performed === "add" ? "to" : "from"
+        //   } list ${list_id}: ${message}`
+        // );
         // IMPORTANT: Here you need to decide how to update the UI.
         // 1. Invalidate/Refetch userLists: This is the safest to get updated question_counts.
         //    The component calling this thunk would dispatch `fetchUserLists({ forceRefetch: true })`.
