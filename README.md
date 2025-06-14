@@ -2,6 +2,10 @@
 
 LeetSight is an AI-powered platform designed to help software engineers prepare for technical interviews by leveraging real LeetCode discussion data and community insights.
 
+## Live Demo
+
+👉 [https://leetsight.com](https://leetsight.com)
+
 ## What Problem Does LeetSight Solve?
 
 Preparing for technical interviews can be overwhelming due to the vast number of problems and lack of real-world context. Candidates often struggle to identify:
@@ -27,7 +31,6 @@ LeetSight addresses these challenges by analyzing real user-shared interview exp
 - **Custom Lists:** Create, edit, and share your own lists of questions.
 - **Save & Track Progress:** Mark questions as completed and monitor your progress.
 - **Like/Dislike & Reactions:** React to lists and questions to help surface the most useful resources.
-- **Modern UI:** Clean, responsive interface built with Next.js and modern React best practices.
 
 ---
 
@@ -46,7 +49,3 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
