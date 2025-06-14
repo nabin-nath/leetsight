@@ -10,10 +10,19 @@ import {
 import { LayoutGrid } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export default function ListsPage() {
+  return (
+    <Suspense fallback={<div>Loading Page...</div>}>
+      <ListsPageContent />
+    </Suspense>
+  );
+}
+
+// Move your current ListsPage logic into a new component:
+function ListsPageContent() {
   const dispatch = useAppDispatch();
   const { data: session } = useSession();
   const router = useRouter();

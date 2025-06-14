@@ -142,9 +142,7 @@ const allListsSlice = createSlice({
     [fetchMyLists, fetchPublicLists].forEach((thunk) => {
       builder
         .addCase(thunk.pending, (state, action) => {
-          const listType =
-            action.meta.arg.listType ||
-            (action.type.includes("My") ? "my" : "public"); // Infer listType
+          const listType = action.type.includes("My") ? "my" : "public"; // Infer listType
           const targetState =
             listType === "my" ? state.myLists : state.publicLists;
           targetState.status = "loading";
@@ -162,9 +160,7 @@ const allListsSlice = createSlice({
           targetState.hasNextPage = data.has_next_page;
         })
         .addCase(thunk.rejected, (state, action) => {
-          const listType =
-            action.meta.arg.listType ||
-            (action.type.includes("My") ? "my" : "public"); // Infer listType
+          const listType = action.type.includes("My") ? "my" : "public"; // Infer listType
           const targetState =
             listType === "my" ? state.myLists : state.publicLists;
           targetState.status = "failed";

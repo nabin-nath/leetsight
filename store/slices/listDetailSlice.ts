@@ -34,9 +34,7 @@ export const fetchListDetails = createAsyncThunk<
     try {
       const response = await apiClient.get<ListDetail>(`/lists/${listId}`);
       if (response.status < 200 || response.status >= 300) {
-        return rejectWithValue(
-          response.data.error || "Failed to fetch list details"
-        );
+        return rejectWithValue("Failed to fetch list details");
       }
       return response.data;
     } catch (error) {
