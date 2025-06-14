@@ -1,6 +1,5 @@
-// src/store/slices/listDetailSlice.ts
 import apiClient from "@/lib/apiClient";
-import { ListDetail, ListDetailReduxState } from "@/types"; // QuestionInList from types
+import { ListDetail, ListDetailReduxState } from "@/types";
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 const initialState: ListDetailReduxState = {

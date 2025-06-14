@@ -1,5 +1,5 @@
 import apiClient from "@/lib/apiClient";
-import { CompanyOption } from "@/types"; // Assuming types are in src/types/index.ts
+import { CompanyOption } from "@/types";
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface CompaniesState {
@@ -9,7 +9,7 @@ interface CompaniesState {
 }
 
 const initialState: CompaniesState = {
-  items: [{ name: "All Companies", id: "1000" }], // Default "All Companies"
+  items: [{ name: "All Companies", id: "1000" }],
   status: "idle",
   error: null,
 };
@@ -20,13 +20,6 @@ export const fetchCompanies = createAsyncThunk<
   { rejectValue: string }
 >("companies/fetchCompanies", async (_, { rejectWithValue, getState }) => {
   const { companies } = getState() as { companies: CompaniesState };
-  if (companies.status === "succeeded" || companies.status === "loading") {
-    // console.log("Companies already fetched or loading, returning current items.");
-    // This ensures it's "fetch once" effectively.
-    // If you return here, ensure the thunk status doesn't get stuck or
-    // that components handle this gracefully. A common way is to let it dispatch.
-    // The component dispatches only if status is 'idle'.
-  }
   try {
     const response = await apiClient.get<CompanyOption[]>("/companies"); // Assuming API returns CompanyOption[]
     if (response.status < 200 || response.status >= 300) {

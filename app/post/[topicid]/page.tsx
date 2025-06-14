@@ -130,8 +130,7 @@ export default function PostDetailPage() {
         [listId]: action === "add" ? "added" : "idle",
       })); // 'added' or back to 'idle' for remove
 
-      // IMPORTANT: Re-fetch user lists to update question_counts
-      dispatch(fetchUserLists()); // No need for forceRefetch if your fetchUserLists thunk handles staleness or if you want fresh data
+      dispatch(fetchUserLists());
 
       return true;
     } catch (e: any) {
@@ -147,20 +146,16 @@ export default function PostDetailPage() {
   ): Promise<boolean> => {
     if (!questionId) return false;
     setCurrentlySavingToListId(listId); // Indicate saving to this specific list
-    // OR setCurrentlySavingToListId("ANY"); // Indicate a save operation is in progress
 
     try {
       await dispatch(addQuestionToList({ listId, questionId })).unwrap();
       toast.success(`Question added to list!`);
-      // Optionally, you might want to update the question object in postDetailSlice
-      // to reflect it's been saved to *a* list, or refetch userLists to update counts.
-      // For now, just a success toast.
       setCurrentlySavingToListId(null);
-      return true; // Indicate success for closing modal
+      return true;
     } catch (e: any) {
       toast.error(e.message || e || "Failed to add question to list.");
       setCurrentlySavingToListId(null);
-      return false; // Indicate failure
+      return false;
     }
   };
 
@@ -221,7 +216,6 @@ export default function PostDetailPage() {
 
   useEffect(() => {
     return () => {
-      // console.log("PostDetailPage: Component unmounting, clearing post detail.");
       dispatch(clearPostDetail());
     };
   }, [dispatch]);

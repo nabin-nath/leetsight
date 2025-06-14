@@ -1,4 +1,3 @@
-// src/app/lists/page.tsx
 "use client";
 import { ListDetailView } from "@/components/custom/lists/ListDetailView";
 import { ListSidebar } from "@/components/custom/lists/ListSidebar";
@@ -164,19 +163,14 @@ export default function ListsPage() {
     setActiveListType(type);
     setSearchTerm(""); // Clear search term when toggling type
 
-    // --- MODIFICATION: Update URL to remove list 'id' and potentially 'q' (search term) ---
     const currentQuery = new URLSearchParams(
       Array.from(searchParams.entries())
     );
     currentQuery.delete("id");
     currentQuery.delete("q"); // Assuming 'q' is your search query param if you add it
-    // Optionally, you could add `type=public` or `type=my` to the URL too
-    // currentQuery.set("type", type);
     router.push(`/lists?${currentQuery.toString()}`);
-    // The useEffect for fetching sidebar lists will trigger.
   };
 
-  // Determine if detail view should be shown (for responsive handling)
   const showDetailView =
     !!selectedListIdFromUrl || listDetailStatus === "loading";
 

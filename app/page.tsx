@@ -1,29 +1,25 @@
-// src/app/page.tsx
 "use client";
 import { ApplyFiltersCard } from "@/components/custom/applyFilters";
-import PrimaryPostCard from "@/components/custom/card/PrimarPostCard"; // Adjust the import path as needed
+import PrimaryPostCard from "@/components/custom/card/PrimarPostCard";
 import { PaginationDemo } from "@/components/custom/PaginationFilter";
-import { addDays, format as formatDateFns, isValid, parseISO } from "date-fns"; // Ensure alias for format
+import { addDays, format as formatDateFns, isValid, parseISO } from "date-fns";
 import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
-import { Suspense, useCallback, useEffect, useState } from "react"; // useState for local UI state if any
+import { Suspense, useCallback, useEffect, useState } from "react";
 
 // Redux imports
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchMyLists } from "@/store/slices/allListsSlice";
 import { fetchCompanies } from "@/store/slices/companiesSlice";
 import { fetchPosts, setFiltersOptimistic } from "@/store/slices/postsSlice";
 import {
   fetchRolesForCompany,
   setRolesForCompany,
 } from "@/store/slices/rolesSlice";
-import { fetchUserLists } from "@/store/slices/userListSlice";
-import { Filters as ReduxFiltersState } from "@/types"; // Use Filters from types
+import { Filters as ReduxFiltersState } from "@/types";
 import { LoaderPinwheel } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { fetchMyLists } from "@/store/slices/allListsSlice";
 
-// Keep local helper functions like formatDateDisplay, parseDateParam
-// ... (parseDateParam, formatDateDisplay can remain the same) ...
 const parseDateParam = (
   dateStr: string | null | undefined,
   defaultDate: Date // Return Date object for UI components
@@ -56,10 +52,7 @@ const formatDateDisplay = (dateString?: string | null) => {
   }
 };
 
-// No QueryClient needed here anymore if all data is in Redux
 export default function HomeWrapper() {
-  // If StoreProvider is in a higher layout, this might just return <Home />
-  // Suspense can still be used for code splitting Home if it's heavy
   return (
     <Suspense
       fallback={
@@ -74,10 +67,9 @@ export default function HomeWrapper() {
 }
 
 interface LocalFiltersUIState {
-  // For ApplyFiltersCard props if it still expects Date objects
   companyId: string;
   role: string;
-  pageSize: string; // Keep as string for form compatibility
+  pageSize: string;
   fromDate?: Date;
   toDate?: Date;
 }
@@ -86,16 +78,17 @@ function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
-  const userListStatus = useAppSelector((state) => state.allLists.myLists.status);
+  const userListStatus = useAppSelector(
+    (state) => state.allLists.myLists.status
+  );
   const { data: session, status: authStatus } = useSession();
 
-  // --- Selectors for Redux State ---
   const {
     items: availableCompanies,
     status: companiesStatus,
     error: companiesError,
   } = useAppSelector((state) => state.companies);
-  const rolesByCompany = useAppSelector((state) => state.roles); // This is an object: { [companyId]: { roles, status, error } }
+  const rolesByCompany = useAppSelector((state) => state.roles);
   const {
     items: posts,
     status: postsStatus,
@@ -125,9 +118,6 @@ function Home() {
       );
     });
 
-  // --- Local state for URL parsing and driving Redux filter state ---
-  // This local state translates URL params into a structure that can be dispatched
-  // to update Redux `currentFilters` in the postsSlice.
   const [derivedFiltersFromUrl, setDerivedFiltersFromUrl] =
     useState<ReduxFiltersState>(() => {
       const params = new URLSearchParams(searchParams);
@@ -149,9 +139,6 @@ function Home() {
       };
     });
 
-  // --- Derived state for ApplyFiltersCard UI ---
-  // `initialFilters` for ApplyFiltersCard should now use `companyIdForRolePreview` for its companyId
-  // but other fields from the actual applied filters (reduxCurrentFilters or derivedFiltersFromUrl).
   const activeUIFilters: LocalFiltersUIState = React.useMemo(() => {
     const baseFilters = reduxCurrentFilters || derivedFiltersFromUrl;
     return {
@@ -176,13 +163,7 @@ function Home() {
     status: "idle",
     error: null,
   };
-  // console.log(
-  //   "current selected company: ",
-  //   selectedCompanyIdForRoles,
-  //   currentCompanyRolesData
-  // );
   const availableRolesForFilter = currentCompanyRolesData.roles;
-  // console.log("Available roles for filter:", availableRolesForFilter);
   const isLoadingRoles = currentCompanyRolesData.status === "loading";
 
   // --- Effect to fetch initial data ---
@@ -192,7 +173,6 @@ function Home() {
     }
   }, [companiesStatus, dispatch]);
 
-  // Effect to fetch roles when selected company changes in Redux filters (or initially)
   useEffect(() => {
     if (companyIdForRolePreview && companiesStatus === "succeeded") {
       const companyData = rolesByCompany[companyIdForRolePreview];
@@ -219,14 +199,13 @@ function Home() {
     }
   }, [companyIdForRolePreview, companiesStatus, rolesByCompany, dispatch]);
 
-  // Effect to fetch posts when filters in Redux (currentFilters) or page changes
   useEffect(() => {
     const filtersToFetch: ReduxFiltersState = derivedFiltersFromUrl;
     if (filtersToFetch.pageSize > 0 && postsStatus !== "loading") {
       let shouldFetch = true;
       if (postsStatus === "succeeded" && reduxCurrentFilters) {
-        const { page: _p1, ...rf } = reduxCurrentFilters; // Applied filters in store
-        const { page: _p2, ...ff } = filtersToFetch; // Filters we want to fetch for
+        const { page: _p1, ...rf } = reduxCurrentFilters;
+        const { page: _p2, ...ff } = filtersToFetch;
         if (
           JSON.stringify(rf) === JSON.stringify(ff) &&
           reduxCurrentFilters.page === filtersToFetch.page
@@ -279,7 +258,6 @@ function Home() {
 
       // Update URL
       const newParams = new URLSearchParams();
-      // ... (param setting as before, using newAppliedFiltersPayload)
       newParams.set("page", "1");
       newParams.set("pageSize", String(newAppliedFiltersPayload.pageSize));
       if (
@@ -319,11 +297,11 @@ function Home() {
             Browse the latest technical interview experiences from top
             companies.
           </p>
-          {companiesStatus === "succeeded" && ( // Only render ApplyFiltersCard if companies are loaded
+          {companiesStatus === "succeeded" && (
             <ApplyFiltersCard
               availableCompanies={availableCompanies}
-              availableRoles={availableRolesForFilter} // Use derived roles
-              initialFilters={activeUIFilters} // Pass UI-formatted filters
+              availableRoles={availableRolesForFilter}
+              initialFilters={activeUIFilters}
               isLoadingRoles={isLoadingRoles}
               onCompanySelectedForRoleFetch={handleCompanySelectedForRoleFetch}
               onFiltersChange={handleFiltersChangeFromSidebar}
@@ -356,12 +334,11 @@ function Home() {
 
         {posts.length > 0 && (
           <>
-            {postsStatus === "loading" &&
-              posts.length > 0 && ( // Show "Updating list..." if loading new page/filters but old data exists
-                <div className="text-center text-sm text-muted-foreground mb-2">
-                  Updating list...
-                </div>
-              )}
+            {postsStatus === "loading" && posts.length > 0 && (
+              <div className="text-center text-sm text-muted-foreground mb-2">
+                Updating list...
+              </div>
+            )}
             <div className="space-y-5 overflow-y-auto pr-2 pb-4 flex-grow">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {posts.map((post) => (
@@ -390,7 +367,7 @@ function Home() {
               <div className="mt-auto pt-4 border-t bg-background z-10 flex-shrink-0">
                 <PaginationDemo
                   count={postsTotalPages}
-                  initialPage={derivedFiltersFromUrl.page} // Use page from URL/derived state
+                  initialPage={derivedFiltersFromUrl.page}
                   onChange={handlePageChange}
                 />
               </div>

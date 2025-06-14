@@ -1,4 +1,3 @@
-// src/store/slices/allListsSlice.ts (New name or refactor userListSlice)
 import apiClient from "@/lib/apiClient";
 import {
   AllListsState,
@@ -45,18 +44,11 @@ const createFetchListsThunk = (listType: "my" | "public") => {
         listType === "my"
           ? getState().allLists.myLists
           : getState().allLists.publicLists;
-      // Basic "fetch once" or "don't fetch if loading"
-      // More sophisticated caching/invalidation might be needed for pagination/search
-      //   if (currentListState.status === 'loading') {
-      //      return rejectWithValue('Fetch already in progress'); // Or handle differently
-      //   }
-      // If params haven't changed and data is succeeded, consider not re-fetching (more complex)
 
       const endpoint = listType === "my" ? "/users/me/lists" : "/lists";
       const queryParams = new URLSearchParams();
       queryParams.append("skip", String(params.skip || 0));
       queryParams.append("limit", String(params.limit || 20));
-      //   if (params.searchTerm) queryParams.append('q', params.searchTerm); // Assuming 'q' for search
 
       try {
         console.log(
