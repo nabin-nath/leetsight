@@ -3,6 +3,8 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
 import { ModeToggle } from "./theme-toggle";
+import { FaGithub } from "react-icons/fa";
+import { Button } from "./button";
 
 const HEADER_TITLES: { [key: string]: string } = {
   "/": "Recent Interview Experiences",
@@ -26,7 +28,17 @@ export function SiteHeader() {
         />
         <h1 className="text-base font-medium">{headerTitle}</h1>
       </div>
-      <div className="mr-3">
+      <div className="mr-3 flex items-center gap-2">
+        <Button
+          onClick={() => {
+            window.open(`https://github.com/nabin-nath/leetsight`, "_blank");
+          }}
+          className="cursor-pointer"
+          variant="outline"
+          size="icon"
+        >
+          <FaGithub />
+        </Button>
         <ModeToggle />
       </div>
     </header>
