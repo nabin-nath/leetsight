@@ -12,6 +12,10 @@ interface UserListState {
   hasNextPage: boolean;
   status: "idle" | "loading" | "succeeded" | "failed"; // For fetch status
   error: string | null;
+  createStatus: "idle" | "loading" | "succeeded" | "failed"; // For create status
+  createError: string | null; // Error for create operation
+  updateStatus: "idle" | "loading" | "succeeded" | "failed"; // For update status
+  updateError: string | null; // Error for update operation
 }
 
 const initialState: UserListState = {
@@ -21,8 +25,95 @@ const initialState: UserListState = {
   currentPage: 1,
   hasNextPage: false,
   status: "idle", // Initially idle, not yet fetched
-  error: null,
+  createError: null, // Error for create operation
+  updateStatus: "idle", // Status for update operation
+  updateError: null, // Error for update operation
+  createStatus: "idle", // Status for create operation
+  error: null, // Error for fetch operation
 };
+
+export const createUserList = createAsyncThunk(
+  "userList/createUserList",
+  async (
+    {
+      name,
+      description,
+      is_public,
+      tags,
+    }: {
+      name: string;
+      description: string;
+      is_public: boolean;
+      tags: string[];
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await apiClient.post("/lists", {
+        name,
+        description,
+        is_public,
+        tags,
+      });
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to create list"
+      );
+    }
+  }
+);
+
+export const deleteUserList = createAsyncThunk(
+  "userList/deleteUserList",
+  async (id: string, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.delete(`/lists/${id}`);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to delete list"
+      );
+    }
+  }
+);
+
+export const updateUserList = createAsyncThunk(
+  "userList/updateUserList",
+  async (
+    {
+      id,
+      name,
+      description,
+      is_public,
+      tags,
+      views,
+    }: {
+      id: string;
+      name: string;
+      description: string;
+      is_public: boolean;
+      tags: string[];
+      views: number;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await apiClient.put(`/lists/${id}`, {
+        name,
+        description,
+        is_public,
+        tags,
+        views,
+      });
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to update list"
+      );
+    }
+  }
+);
 
 // Async thunk for fetching user lists
 export const fetchUserLists = createAsyncThunk<
@@ -65,9 +156,7 @@ export const fetchUserLists = createAsyncThunk<
       );
       // console.log("User lists fetched successfully:", response.data);
       if (response.status < 200 || response.status >= 300) {
-        return rejectWithValue(
-          response.data.error || "Failed to fetch user lists"
-        );
+        return rejectWithValue("Failed to fetch user lists");
       }
       return response.data;
     } catch (error) {
@@ -132,6 +221,49 @@ const userListSlice = createSlice({
       .addCase(fetchUserLists.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload ?? "Failed to fetch lists"; // Use rejectValue
+      })
+      .addCase(createUserList.pending, (state) => {
+        state.createStatus = "loading";
+        state.createError = null;
+      })
+      .addCase(createUserList.fulfilled, (state, action) => {
+        state.createStatus = "succeeded";
+        state.createError = null;
+        // Optionally add the new list to state.lists here
+      })
+      .addCase(createUserList.rejected, (state, action) => {
+        state.createStatus = "failed";
+        state.createError = action.payload as string;
+      })
+      .addCase(updateUserList.pending, (state) => {
+        state.updateStatus = "loading";
+        state.updateError = null;
+      })
+      .addCase(updateUserList.fulfilled, (state, action) => {
+        state.updateStatus = "succeeded";
+        state.updateError = null;
+        // Optionally update the list in state.lists here
+      })
+      .addCase(updateUserList.rejected, (state, action) => {
+        state.updateStatus = "failed";
+        state.updateError = action.payload as string;
+      })
+      .addCase(deleteUserList.pending, (state) => {
+        state.status = "loading"; // Reuse status for delete operation
+        state.error = null;
+      })
+      .addCase(deleteUserList.fulfilled, (state, action) => {
+        state.status = "succeeded"; // Reuse status for delete operation
+        state.error = null;
+        // Remove the deleted list from state.lists
+        state.lists = state.lists.filter(
+          (list) => list.id !== action.payload.id
+        );
+        state.totalRecords -= 1; // Adjust total records count
+      })
+      .addCase(deleteUserList.rejected, (state, action) => {
+        state.status = "failed"; // Reuse status for delete operation
+        state.error = action.payload as string; // Use rejectValue
       });
   },
 });

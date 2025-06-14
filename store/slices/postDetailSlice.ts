@@ -171,8 +171,7 @@ export const updatePostReaction = createAsyncThunk<
         return rejectWithValue(
           response.data.error || "Failed to update reaction"
         );
-      }
-      // Assuming backend returns the new like/dislike state and counts
+      }      
       return { ...response.data, originalAction: action };
     } catch (error) {
       const message =

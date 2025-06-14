@@ -29,7 +29,7 @@ export const fetchListDetails = createAsyncThunk<
       listDetail.status === "loading" &&
       listDetail.selectedListDetail?.id === listId
     ) {
-      return rejectWithValue("Already loading this list detail");
+      // return rejectWithValue("Already loading this list detail");
     }
 
     try {
@@ -97,6 +97,22 @@ const listDetailSlice = createSlice({
         }
       }
     },
+    setListDetailReaction: (
+      state,
+      action: PayloadAction<{
+        is_liked: boolean;
+        is_disliked: boolean;
+        likes_count: number;
+        dislikes_count: number;
+      }>
+    ) => {
+      if (state.selectedListDetail) {
+        state.selectedListDetail.is_liked = action.payload.is_liked;
+        state.selectedListDetail.is_disliked = action.payload.is_disliked;
+        state.selectedListDetail.likes_count = action.payload.likes_count;
+        state.selectedListDetail.dislikes_count = action.payload.dislikes_count;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -150,3 +166,4 @@ const listDetailSlice = createSlice({
 export const { clearSelectedList, toggleQuestionDoneInListOptimistic } =
   listDetailSlice.actions;
 export default listDetailSlice.reducer;
+export const { setListDetailReaction } = listDetailSlice.actions;

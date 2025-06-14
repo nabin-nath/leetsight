@@ -84,6 +84,55 @@ const createFetchListsThunk = (listType: "my" | "public") => {
 export const fetchMyLists = createFetchListsThunk("my");
 export const fetchPublicLists = createFetchListsThunk("public");
 
+// --- List Reaction Thunk ---
+export const updateListReaction = createAsyncThunk<
+  // Response type (adjust as needed)
+  {
+    item_id: string;
+    user_id: string;
+    is_like: boolean | null;
+    status: "added" | "removed" | "updated";
+    originalAction: "like" | "dislike" | "remove";
+    listId: string;
+    is_liked: boolean;
+    is_disliked: boolean;
+    likes_count: number;
+    dislikes_count: number;
+  },
+  // Arg type
+  { listId: string; action: "like" | "dislike" | "remove" },
+  { rejectValue: string }
+>(
+  "allLists/updateListReaction",
+  async ({ listId, action }, { rejectWithValue }) => {
+    try {
+      let response;
+      if (action === "remove") {
+        response = await apiClient.delete(`/lists/${listId}/like`);
+      } else {
+        response = await apiClient.post(`/lists/${listId}/like`, {
+          is_like: action === "like",
+        });
+      }
+      if (response.status < 200 || response.status >= 300) {
+        return rejectWithValue(
+          response.data?.error || "Failed to update list reaction"
+        );
+      }
+
+      return {
+        ...response.data,
+        originalAction: action,
+        listId,
+      };
+    } catch (error: any) {
+      return rejectWithValue(
+        error?.response?.data?.message || "Failed to update list reaction"
+      );
+    }
+  }
+);
+
 const allListsSlice = createSlice({
   name: "allLists",
   initialState,
@@ -129,6 +178,21 @@ const allListsSlice = createSlice({
           targetState.status = "failed";
           targetState.error = action.payload ?? `Failed to fetch lists`;
         });
+    });
+
+    builder.addCase(updateListReaction.fulfilled, (state, action) => {
+      const { item_id, is_liked, is_disliked, likes_count, dislikes_count } =
+        action.payload;
+
+      [state.myLists, state.publicLists].forEach((listState) => {
+        const list = listState.items.find((l) => l.id === item_id);
+        if (list) {
+          list.is_liked = is_liked;
+          list.is_disliked = is_disliked;
+          list.likes_count = likes_count;
+          list.dislikes_count = dislikes_count;
+        }
+      });
     });
   },
 });

@@ -70,7 +70,6 @@ export default function PostDetailPage() {
   const [listInteractionStatus, setListInteractionStatus] = useState<{
     [listId: string]: "saving" | "removing" | "added" | "failed" | "idle";
   }>({});
-  const allUserLists = useAppSelector((state) => state.userList.lists);
   const [listsContainingSelectedQuestion, setListsContainingSelectedQuestion] =
     useState<string[]>([]);
 
@@ -239,7 +238,6 @@ export default function PostDetailPage() {
     if (actionType === "like") {
       actionToDispatch = post.is_liked ? "remove" : "like";
     } else {
-      // actionType === 'dislike'
       actionToDispatch = post.is_disliked ? "remove" : "dislike";
     }
 

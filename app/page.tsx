@@ -20,6 +20,7 @@ import { fetchUserLists } from "@/store/slices/userListSlice";
 import { Filters as ReduxFiltersState } from "@/types"; // Use Filters from types
 import { LoaderPinwheel } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { fetchMyLists } from "@/store/slices/allListsSlice";
 
 // Keep local helper functions like formatDateDisplay, parseDateParam
 // ... (parseDateParam, formatDateDisplay can remain the same) ...
@@ -85,7 +86,7 @@ function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
-  const userListStatus = useAppSelector((state) => state.userList.status);
+  const userListStatus = useAppSelector((state) => state.allLists.myLists.status);
   const { data: session, status: authStatus } = useSession();
 
   // --- Selectors for Redux State ---
@@ -109,7 +110,7 @@ function Home() {
     // Fetch user lists if the user is authenticated and lists haven't been fetched yet
     if (authStatus === "authenticated" && userListStatus === "idle") {
       console.log("Fetching user lists for authenticated user");
-      dispatch(fetchUserLists());
+      dispatch(fetchMyLists({ skip: 0, limit: 20 }));
     }
   }, [authStatus, userListStatus, dispatch]);
 

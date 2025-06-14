@@ -140,6 +140,7 @@ export interface UserListItem {
   likes_count: number;
   dislikes_count: number;
   is_liked: boolean | null;
+  is_disliked: boolean | null;
   user: UserProfile | null;
 }
 
@@ -187,6 +188,7 @@ export interface ListDetailReduxState {
 }
 
 export interface UserListsApiResponse {
+  error: string;
   items: UserListItem[];
   total_records: number;
   total_pages: number;

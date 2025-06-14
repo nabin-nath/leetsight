@@ -29,7 +29,7 @@ export function HoverCardCustom({
           <Avatar>
             <AvatarImage src={picture_url} />
             <AvatarFallback>
-              {title
+              {full_name
                 .split(" ")
                 .map((w) => w[0])
                 .join("")

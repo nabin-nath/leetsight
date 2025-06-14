@@ -193,7 +193,7 @@ export default function ListsPage() {
         onSearch={handleSearch}
       />
       <main
-        className={`flex-1 overflow-auto p-4 md:p-6 transition-all duration-300 ease-in-out ${
+        className={`flex-1 overflow-auto mb-3  px-6 md:px-6 transition-all duration-300 ease-in-out pt-0 ${
           showDetailView ? "block" : "hidden md:block"
         }`}
       >
@@ -202,6 +202,7 @@ export default function ListsPage() {
             listDetail={selectedListDetail} // This will be null initially if ID just changed
             status={listDetailStatus}
             error={listDetailError}
+            type={activeListType}
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center">

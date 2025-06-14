@@ -128,7 +128,7 @@ export const SaveToListModal: React.FC<SaveToListModalProps> = ({
                       <div className="flex-grow">
                         <p className="font-semibold">{list.name}</p>
                         <p className="text-xs text-muted-foreground line-clamp-1">
-                          {list.description} ({list.questions_count} Qs)
+                          {list.description.length > 65 ? `${list.description.slice(0, 65)}...` : list.description} ({list.questions_count} Qs)
                         </p>
                       </div>
                       {/* Visual feedback for interaction state */}

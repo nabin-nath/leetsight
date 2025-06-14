@@ -1,12 +1,12 @@
 // src/components/custom/lists/ListSidebar.tsx
 "use client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { UserListItem } from "@/types";
 import { Globe, PlusCircle, User } from "lucide-react"; // Example icons
-import Link from "next/link";
+import { useSession } from "next-auth/react";
 import React, { useState } from "react";
+import { ListCreateUpdateModal } from "../modal/ListCreateUpdateModal";
 
 interface ListSidebarProps {
   activeListType: "public" | "my";
@@ -39,7 +39,9 @@ const ListItemCard: React.FC<{
       )}
     </div>
     <p className="text-xs text-wrap text-muted-foreground overflow-auto line-clamp-2">
-      {list.description}
+      {list.description.length > 100
+        ? `${list.description.slice(0, 100)}...`
+        : list.description}
     </p>
     <div className="flex items-center space-x-2 text-xs text-muted-foreground mt-1">
       <span>{list.questions_count} Qs</span>
@@ -52,7 +54,7 @@ const ListItemCard: React.FC<{
 export const ListSidebar: React.FC<ListSidebarProps> = ({
   activeListType,
   onToggleListType,
-  lists,
+  lists = [],
   status,
   error,
   selectedListId,
@@ -60,6 +62,9 @@ export const ListSidebar: React.FC<ListSidebarProps> = ({
   onSearch,
 }) => {
   const [searchTermLocal, setSearchTermLocal] = useState("");
+  const { data: session } = useSession();
+  const user = session?.user;
+  const [createOpen, setCreateOpen] = useState(false);
 
   const handleSearchSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
@@ -87,14 +92,25 @@ export const ListSidebar: React.FC<ListSidebarProps> = ({
           <User size={16} className="mr-2" /> My Lists
         </Button>
       </div>
-      <Link href="/lists/create" passHref>
-        <Button variant="outline" className="w-full">
-          <PlusCircle size={16} className="mr-2" /> Create New List
-        </Button>
-      </Link>
+      {user && (
+        <>
+          <Button
+            variant="outline"
+            className="w-full mb-0"
+            onClick={() => setCreateOpen(true)}
+          >
+            <PlusCircle size={16} /> Create new list
+          </Button>
+          <ListCreateUpdateModal
+            open={createOpen}
+            onOpenChange={setCreateOpen}
+            type="create"
+          />
+        </>
+      )}
 
       {/* Search Bar */}
-      <form onSubmit={handleSearchSubmit} className="flex space-x-2">
+      {/* <form onSubmit={handleSearchSubmit} className="flex space-x-2">
         <Input
           type="search"
           placeholder="Search lists..."
@@ -102,15 +118,13 @@ export const ListSidebar: React.FC<ListSidebarProps> = ({
           onChange={(e) => setSearchTermLocal(e.target.value)}
           className="flex-grow"
         />
-      </form>
+      </form> */}
 
       {/* Lists Area */}
-      <ScrollArea className="flex-grow -mx-4">
+      <ScrollArea className="flex-grow -mx-4 overflow-y-auto">
         {" "}
         {/* Negative margin to extend scroll to edges */}
         <div className="px-4 space-y-1">
-          {" "}
-          {/* Padding inside scroll area */}
           {status === "loading" && (
             <p className="p-4 text-center text-muted-foreground">
               Loading lists...
@@ -124,6 +138,7 @@ export const ListSidebar: React.FC<ListSidebarProps> = ({
               No lists found.
             </p>
           )}
+
           {status === "succeeded" &&
             lists.map((list) => (
               <ListItemCard
@@ -133,7 +148,6 @@ export const ListSidebar: React.FC<ListSidebarProps> = ({
                 onSelect={() => onListSelect(list.id)}
               />
             ))}
-          {/* Add "Load More" button if implementing pagination */}
         </div>
       </ScrollArea>
     </aside>
