@@ -1,24 +1,20 @@
 "use client";
 
-import {
-  ThumbsUp,
-  ThumbsDown,
-  Eye,
-  Tag,
-  ExternalLink,
-  CircleHelp,
-  Building2,
-  Briefcase,
-  Flame,
-  ArrowLeftCircle,
-} from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation"; // Import useRouter
-import Link from "next/link";
-import apiClient from "@/lib/apiClient";
-import MarkdownFormatter from "@/components/custom/MarkdownFormatter";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { addQuestionToList } from "@/store/slices/postDetailSlice"; // Import the new thunk
+import {
+  ArrowLeftCircle,
+  Briefcase,
+  Building2,
+  ExternalLink,
+  Eye,
+  Flame,
+  Tag,
+} from "lucide-react";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import {
   RiThumbDownFill,
   RiThumbDownLine,
@@ -26,63 +22,21 @@ import {
   RiThumbUpLine,
 } from "react-icons/ri";
 import { toast } from "sonner";
-import { useSession } from "next-auth/react";
 
-// Interfaces (ensure these are consistent)
-interface PostResponse {
-  post: Post;
-  questions: Question[];
-}
+// Redux imports
+import QuestionCard from "@/components/custom/card/QuestionCard";
+import { SaveToListModal } from "@/components/custom/saveToList";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import {
+  clearPostDetail,
+  fetchPostAndQuestions,
+  toggleQuestionDoneStatus,
+  updatePostReaction,
+  updateQuestionInList,
+} from "@/store/slices/postDetailSlice";
+import { fetchUserLists } from "@/store/slices/userListSlice"; // To refresh list counts
 
-interface Post {
-  title: string;
-  author: string | null;
-  content: string;
-  slug: string;
-  tags: string[] | null;
-  leetcode_created_at: string;
-  upvote: number;
-  downvote: number;
-  yoe: number | null;
-  views: number;
-  company_ids: number[];
-  status: string;
-  topic_id: number;
-  created_at: string;
-  updated_at: string;
-  companies: Company[];
-  roles: string[] | [];
-  likes_count: number;
-  dislikes_count: number;
-  is_liked: boolean;
-  is_disliked: boolean;
-}
-
-interface Company {
-  id: number;
-  name: string;
-}
-
-interface Question {
-  topic_id: number;
-  question_text: string;
-  role: string;
-  company_id: number;
-  tags: string[] | null;
-  id: string;
-  created_at: string;
-  updated_at: string;
-  similar_questions: SimilarQuestion[];
-  companies: Company[];
-}
-
-interface SimilarQuestion {
-  question_id: string;
-  source: string; // This should ideally be a URL or identifier
-  score: number;
-  id: string; // Assuming this is a unique ID for the similar question record
-}
-
+// formatDate can remain the same
 const formatDate = (dateString?: string | null) => {
   if (!dateString) return "N/A";
   try {
@@ -92,185 +46,237 @@ const formatDate = (dateString?: string | null) => {
       day: "numeric",
     });
   } catch {
-    return dateString; // Fallback for invalid date strings
+    return dateString;
   }
 };
 
 export default function PostDetailPage() {
   const params = useParams();
-  const router = useRouter(); // Get router instance
+  const router = useRouter();
+  const dispatch = useAppDispatch();
   const topicIdFromUrl = params?.topicid as string;
 
-  const [postData, setPostData] = useState<PostResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const user = session?.user;
 
-  const deleteReactions = async () => {
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [selectedQuestionIdForSave, setSelectedQuestionIdForSave] = useState<
+    string | null
+  >(null);
+  const [currentlySavingToListId, setCurrentlySavingToListId] = useState<
+    string | null
+  >(null); // For loading indicator on list item
+
+  const [listInteractionStatus, setListInteractionStatus] = useState<{
+    [listId: string]: "saving" | "removing" | "added" | "failed" | "idle";
+  }>({});
+  const [listsContainingSelectedQuestion, setListsContainingSelectedQuestion] =
+    useState<string[]>([]);
+
+  // Selectors from Redux store
+  const { post, questions, status, error } = useAppSelector(
+    (state) => state.postDetail
+  );
+
+  const fetchedTopicIdRef = useRef<string | null>(null);
+
+  const questionItemStatus = useAppSelector(
+    (state) => state.postDetail.questionStatus
+  );
+
+  const openSaveModal = (questionId: string) => {
+    if (!user) {
+      toast.error("Please login to save questions.");
+      return;
+    }
+    setSelectedQuestionIdForSave(questionId);
+    const question = questions.find((q) => q.id === questionId); // Get the full question object from Redux state
+    if (!question) return;
+
+    setListsContainingSelectedQuestion(question.saved_in_lists || []);
+    setIsSaveModalOpen(true);
+  };
+
+  const handleQuestionListUpdate = async (
+    listId: string,
+    questionId: string,
+    action: "add" | "remove"
+  ): Promise<boolean> => {
+    if (!questionId) return false;
+
+    setListInteractionStatus((prev) => ({
+      ...prev,
+      [listId]: action === "add" ? "saving" : "removing",
+    }));
+
     try {
-      const id = postData?.post.topic_id;
-      const res = await apiClient.delete(`/posts/${id}/like`);
+      await dispatch(
+        updateQuestionInList({ listId, questionId, action })
+      ).unwrap();
+      toast.success(
+        `Question ${action === "add" ? "added to" : "removed from"} list!`
+      );
 
-      if (res.status < 200 || res.status >= 300) {
-        const errData = res.data;
-        toast.error("Not able to update reaction, kindly try again later.");
-        return;
+      // Optimistically update listsContainingSelectedQuestion
+      if (action === "add") {
+        setListsContainingSelectedQuestion((prev) => [...prev, listId]);
+      } else {
+        setListsContainingSelectedQuestion((prev) =>
+          prev.filter((id) => id !== listId)
+        );
       }
+      setListInteractionStatus((prev) => ({
+        ...prev,
+        [listId]: action === "add" ? "added" : "idle",
+      })); // 'added' or back to 'idle' for remove
 
-      toast.success("Updated reaction successfully");
+      dispatch(fetchUserLists());
+
       return true;
-    } catch (e) {
-      toast.error("Not able to update reaction, kindly try again later.");
+    } catch (e: any) {
+      toast.error(e.message || e || `Failed to ${action} question.`);
+      setListInteractionStatus((prev) => ({ ...prev, [listId]: "failed" }));
       return false;
     }
   };
 
-  const updateReactions = async (type: string) => {
+  const handleSaveQuestionToList = async (
+    listId: string,
+    questionId: string
+  ): Promise<boolean> => {
+    if (!questionId) return false;
+    setCurrentlySavingToListId(listId); // Indicate saving to this specific list
+
     try {
-      const id = postData?.post.topic_id;
-
-      const body = {
-        is_like: type == "like",
-      };
-
-      const res = await apiClient.post(`/posts/${id}/like`, body);
-
-      if (res.status < 200 || res.status >= 300) {
-        const errData = res.data;
-        toast.error("Not able to update reaction, kindly try again later.");
-        return;
-      }
-
-      toast.success("Updated reaction successfully");
+      await dispatch(addQuestionToList({ listId, questionId })).unwrap();
+      toast.success(`Question added to list!`);
+      setCurrentlySavingToListId(null);
       return true;
-    } catch (e) {
-      toast.error("Not able to update reaction, kindly try again later.");
+    } catch (e: any) {
+      toast.error(e.message || e || "Failed to add question to list.");
+      setCurrentlySavingToListId(null);
       return false;
     }
   };
 
-  const handleLikeClick = async (type: "like" | "dislike") => {
-    let success = null;
+  useEffect(() => {
+    // Ensure topicIdFromUrl is a valid number string before parsing
+    const currentTopicIdNum = topicIdFromUrl
+      ? parseInt(topicIdFromUrl, 10)
+      : NaN;
 
+    if (topicIdFromUrl && !isNaN(currentTopicIdNum)) {
+      // Condition to fetch:
+      // 1. The current topic ID from URL is different from the last fetched/loading topic ID.
+      // OR
+      // 2. The status is 'idle' (initial load for this component instance) and we haven't tried fetching this ID yet.
+      // OR
+      // 3. The status is 'failed' (previous attempt for this ID failed, allow retry).
+      // AND
+      // 4. We are not already 'loading' for the current topicIdFromUrl (to prevent multiple dispatches)
+      //    (The `fetchedTopicIdRef.current === topicIdFromUrl && status === 'loading'` part handles this implicitly)
+
+      const shouldFetch =
+        (fetchedTopicIdRef.current !== topicIdFromUrl &&
+          status !== "loading") || // New topic ID and not already loading
+        (status === "idle" && fetchedTopicIdRef.current !== topicIdFromUrl) || // Initial load for this new topic ID
+        (status === "failed" && fetchedTopicIdRef.current === topicIdFromUrl); // Retry for a failed fetch of the same topic ID
+
+      if (shouldFetch) {
+        // console.log(`Dispatching fetchPostAndQuestions for topicId: ${topicIdFromUrl}, current status: ${status}`);
+        dispatch(fetchPostAndQuestions(topicIdFromUrl));
+        fetchedTopicIdRef.current = topicIdFromUrl; // Mark this topicId as being fetched
+      }
+    }
+
+    // Cleanup function:
+    // This will run when the component unmounts OR when topicIdFromUrl changes BEFORE the next effect runs.
+    return () => {
+      // console.log("PostDetailPage: Cleanup effect for topicId:", topicIdFromUrl);
+      // Only clear if the component is truly unmounting or if the topic ID fundamentally changes.
+      // If the next topicId is different, we want fresh data anyway.
+      // If we clear here, and then the component re-renders with the same topicIdFromUrl,
+      // it might trigger a re-fetch if status became 'idle'.
+      // A better approach might be to clear only on unmount if the data is specific to this instance.
+      // Or, if the data is cached globally by topicId in Redux, clearing might not be desired
+      // unless navigating completely away from any post detail view.
+      // For now, let's assume clearPostDetail sets status to 'idle', which is fine if the next
+      // topic ID is different. If it's the same, the 'shouldFetch' condition above needs to be robust.
+      // This clear is more about resetting the *generic* postDetail slice if you navigate to a completely
+      // different part of the app, not just another post.
+      // dispatch(clearPostDetail()); // Consider the implications of this carefully.
+    };
+    // --- MODIFIED DEPENDENCY ARRAY ---
+    // `dispatch` is stable.
+    // `topicIdFromUrl` is the primary trigger.
+    // `status` is needed to decide if a re-fetch/retry is necessary.
+    // `post` is removed because its change is a *result* of the fetch, not a cause for re-fetching the *same* ID.
+    // If `post.topic_id` was used to compare with `topicIdFromUrl`, it could stay, but `fetchedTopicIdRef` is more direct.
+  }, [topicIdFromUrl, dispatch, status]);
+
+  useEffect(() => {
+    return () => {
+      dispatch(clearPostDetail());
+    };
+  }, [dispatch]);
+
+  const handleLikeDislike = async (actionType: "like" | "dislike") => {
     if (!user) {
       toast.error("Please login first");
       return;
     }
-    if (type == "like") {
-      if (postData?.post.is_liked) {
-        // delete like
-        success = await deleteReactions();
-      } else {
-        // new like
-        success = await updateReactions("like");
-      }
+    if (!post) return;
 
-      if (success) {
-        setPostData((prev) => {
-          if (!prev) return prev;
-          const wasLiked = prev.post.is_liked;
-          const wasDisliked = prev.post.is_disliked;
-          return {
-            ...prev,
-            post: {
-              ...prev.post,
-              is_liked: !wasLiked,
-              likes_count: wasLiked
-                ? prev.post.likes_count - 1
-                : prev.post.likes_count + 1,
-              // If switching from dislike to like, reset dislike
-              is_disliked: wasLiked ? prev.post.is_disliked : false,
-              dislikes_count: wasLiked
-                ? prev.post.dislikes_count
-                : wasDisliked
-                ? prev.post.dislikes_count - 1
-                : prev.post.dislikes_count,
-            },
-          };
-        });
-      }
-    } else if (type == "dislike") {
-      if (postData?.post.is_disliked) {
-        // delete dislike
-        success = await deleteReactions();
-      } else {
-        // new dislike
-        success = await updateReactions("dislike");
-      }
+    let actionToDispatch: "like" | "dislike" | "remove";
 
-      if (success) {
-        setPostData((prev) => {
-          if (!prev) return prev;
-          const wasDisliked = prev.post.is_disliked;
-          const wasLiked = prev.post.is_liked;
-          return {
-            ...prev,
-            post: {
-              ...prev.post,
-              is_disliked: !wasDisliked,
-              dislikes_count: wasDisliked
-                ? prev.post.dislikes_count - 1
-                : prev.post.dislikes_count + 1,
-              // If switching from like to dislike, reset like
-              is_liked: wasDisliked ? prev.post.is_liked : false,
-              likes_count: wasDisliked
-                ? prev.post.likes_count
-                : wasLiked
-                ? prev.post.likes_count - 1
-                : prev.post.likes_count,
-            },
-          };
-        });
-      }
+    if (actionType === "like") {
+      actionToDispatch = post.is_liked ? "remove" : "like";
+    } else {
+      actionToDispatch = post.is_disliked ? "remove" : "dislike";
+    }
+
+    try {
+      await dispatch(
+        updatePostReaction({ topicId: post.topic_id, action: actionToDispatch })
+      ).unwrap();
+      toast.success("Reaction updated!");
+    } catch (e: any) {
+      toast.error(e || "Failed to update reaction.");
     }
   };
 
-  const fetchPostDetail = useCallback(async (id: string) => {
-    if (!id || isNaN(parseInt(id))) {
-      setError("Invalid Post ID.");
-      setIsLoading(false);
+  const handleToggleQuestionDone = async (
+    questionId: string,
+    currentIsDone: boolean
+  ) => {
+    if (!user) {
+      toast.error("Please login to track questions.");
       return;
     }
-    setIsLoading(true);
-    setError(null);
     try {
-      const res = await apiClient.get(`/posts/${id}/questions`);
-      if (res.status < 200 || res.status >= 300) {
-        const errData = res.data;
-        throw new Error(errData.error || "Failed to fetch post details");
-      }
-      const data: PostResponse = res.data;
-      setPostData(data);
-    } catch (err) {
-      console.error("Error fetching post details:", err); // Log error for debugging
-      if (err instanceof Error) setError(err.message);
-      else setError("An unknown error occurred");
-      setPostData(null);
-    } finally {
-      setIsLoading(false);
+      await dispatch(
+        toggleQuestionDoneStatus({ questionId, isDone: !currentIsDone })
+      ).unwrap();
+      toast.success(
+        `Question marked as ${!currentIsDone ? "viewed" : "not viewed"}.`
+      );
+    } catch (e: any) {
+      toast.error(e || "Failed to update question status.");
     }
-  }, []); // fetchPostDetail has no external dependencies that change
-
-  useEffect(() => {
-    if (topicIdFromUrl) {
-      fetchPostDetail(topicIdFromUrl);
-    }
-  }, [topicIdFromUrl]); // Effect depends on topicIdFromUrl and fetchPostDetail
-
-  // Handle back button click
-  const handleBackClick = () => {
-    router.back(); // Use router.back() to navigate to the previous page in history
   };
 
-  if (isLoading)
+  const handleBackClick = () => {
+    router.back();
+  };
+
+  if (status === "loading" && !post)
+    // Show full page loader only if no post data yet
     return (
       <div className="flex justify-center items-center min-h-screen bg-background">
         <p className="text-foreground animate-pulse">Loading post details...</p>
       </div>
     );
-  if (error)
+  if (status === "failed")
     return (
       <div className="flex justify-center items-center min-h-screen bg-background">
         <p className="text-destructive p-4 bg-destructive/10 rounded-md">
@@ -278,82 +284,85 @@ export default function PostDetailPage() {
         </p>
       </div>
     );
-  if (!postData)
+  if (!post && status === "succeeded")
+    // Successfully fetched but no post found for ID
     return (
       <div className="flex justify-center items-center min-h-screen bg-background">
         <p className="text-muted-foreground">Post not found.</p>
       </div>
     );
+  if (!post) return null; // Handles edge case where post is null but not loading/failed (e.g. after clear)
 
   return (
-    <div className="max-w-5xl mx-auto p-4 space-y-6">
-      {/* Back Button */}
-      <button
-        onClick={handleBackClick} // Attach the handler
-        className="flex items-center text-sm text-muted-foreground mb-4 cursor-pointer"
-      >
-        <ArrowLeftCircle size={16} className="mr-1" /> Back to Posts
-      </button>
+    <div className="max-w-5xl mx-auto p-4 space-y-2">
+      <div className="flex justify-between">
+        <button
+          onClick={handleBackClick}
+          className="flex items-center text-sm text-muted-foreground mb-4 cursor-pointer"
+        >
+          <ArrowLeftCircle size={16} className="mr-1" /> Back to Posts
+        </button>
+        <Link
+          href={`https://leetcode.com/discuss/post/${post.topic_id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center text-sm text-muted-foreground mb-4 cursor-pointer"
+        >
+          View Post on Leetcode? <ExternalLink size={16} className="ml-1" />
+        </Link>
+      </div>
 
-      {/* Post Details */}
-      <div className="p-6 rounded-2xl border bg-card shadow-lg space-y-4">
-        <h1 className="text-2xl font-bold">{postData.post.title}</h1>
-        {/* Removed slug display - adjust as needed */}
-        {/* <p className="text-sm">Slug: {postData.post.slug}</p> */}
-
-        {/* Post Metadata */}
+      <div className="p-6 rounded-2xl border bg-card shadow-md space-y-4">
+        <h1 className="text-2xl font-bold">{post.title}</h1>
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-          {postData.post.companies.length > 0 && (
+          {post.companies.length > 0 && (
             <div className="flex items-center gap-2">
-              {postData.post.companies.map((com, id) => (
-                <Badge variant="secondary" key={id}>
-                  <Building2 size={12} className="mr-1" />
-                  {com.name}
-                </Badge>
-              ))}
+              {post.companies.map(
+                (
+                  com // removed id from map
+                ) => (
+                  <Badge variant="secondary" key={com.id}>
+                    {" "}
+                    {/* use com.id as key */}
+                    <Building2 size={12} className="mr-1" />
+                    {com.name}
+                  </Badge>
+                )
+              )}
             </div>
           )}
-
-          {postData.post.roles.length > 0 && (
+          {post.roles.length > 0 && (
             <div className="flex items-center gap-2">
-              {postData.post.roles
-                .filter((role) => role != "N/A")
+              {post.roles
+                .filter((role) => role !== "N/A")
                 .map((role, id) => (
                   <Badge variant="secondary" key={id}>
+                    {" "}
+                    {/* id as index is fine here */}
                     <Briefcase size={12} className="mr-1" />
                     {role}
                   </Badge>
                 ))}
             </div>
           )}
-
-          {typeof postData.post.yoe === "number" && postData.post.yoe > 0 && (
+          {typeof post.yoe === "number" && post.yoe > 0 && (
             <Badge variant="secondary">
               <Flame size={12} className="mr-1" />
-              {postData.post.yoe} Years of exp
+              {post.yoe} Years of exp
             </Badge>
           )}
-
-          {typeof postData.post.views === "number" &&
-            postData.post.views > 0 && (
-              <Badge variant="secondary">
-                <Eye size={12} className="mr-1" />
-                {postData.post.views}
-              </Badge>
-            )}
-
-          <div className="flex items-center gap-1">
-            <span>
-              Created: {formatDate(postData.post.leetcode_created_at)}
-            </span>
-          </div>
+          {typeof post.views === "number" && post.views > 0 && (
+            <Badge variant="secondary">
+              <Eye size={12} className="mr-1" />
+              {post.views}
+            </Badge>
+          )}
+          <span>Created: {formatDate(post.leetcode_created_at)}</span>
         </div>
 
-        {/* Post Tags */}
-        {postData.post.tags && postData.post.tags.length > 0 && (
+        {post.tags && post.tags.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-2">
-            {postData.post.tags.map((tag, index) => (
-              // Use a neutral or secondary badge style
+            {post.tags.map((tag, index) => (
               <span
                 key={index}
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-accent-foreground"
@@ -364,144 +373,77 @@ export default function PostDetailPage() {
           </div>
         )}
 
-        {/* Link to Original LeetCode Post */}
         <div className="flex items-center justify-between">
-          <Button variant="outline" className="mt-4">
-            <Link
-              href={`https://leetcode.com/discuss/post/${postData.post.topic_id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center text-sm text-primary"
-            >
-              View Original Post on LeetCode
-              <ExternalLink className="ml-1 h-4 w-4" />
-            </Link>
-          </Button>
-
           <div className="flex gap-2 mt-auto">
             <div
               className="flex p-1 rounded-md items-center gap-1 cursor-pointer hover:bg-accent"
-              onClick={() => handleLikeClick("like")}
+              onClick={() => handleLikeDislike("like")}
             >
-              {postData.post.is_liked ? (
-                <>
-                  <RiThumbUpFill size={16} /> {postData.post.likes_count}
-                </>
+              {post.is_liked ? (
+                <RiThumbUpFill size={16} />
               ) : (
-                <>
-                  <RiThumbUpLine size={16} /> {postData.post.likes_count}
-                </>
-              )}
+                <RiThumbUpLine size={16} />
+              )}{" "}
+              {post.likes_count}
             </div>
             <div
               className="flex p-1 rounded-md items-center gap-1 cursor-pointer hover:bg-accent"
-              onClick={() => handleLikeClick("dislike")}
+              onClick={() => handleLikeDislike("dislike")}
             >
-              {postData.post.is_disliked ? (
-                <>
-                  <RiThumbDownFill size={16} /> {postData.post.dislikes_count}
-                </>
+              {post.is_disliked ? (
+                <RiThumbDownFill size={16} />
               ) : (
-                <>
-                  <RiThumbDownLine size={16} /> {postData.post.dislikes_count}
-                </>
-              )}
+                <RiThumbDownLine size={16} />
+              )}{" "}
+              {post.dislikes_count}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Extracted Questions Section */}
       <div className="space-y-6 mt-6">
-        {" "}
-        {/* Added mt-6 for spacing */}
         <h2 className="text-2xl font-bold border-b pb-2">
           Extracted Questions
         </h2>
-        {postData.questions.length > 0 ? (
-          postData.questions.map((question) => (
-            <QuestionCard key={question.id} question={question} />
-          ))
-        ) : (
-          <p className="text-muted-foreground">
-            No specific questions were extracted from this post.
-          </p>
+        {status === "loading" && questions.length === 0 && (
+          <p>Loading questions...</p>
+        )}
+        {questions.length > 0
+          ? questions.map((question) => (
+              <QuestionCard
+                key={question.id}
+                question={question}
+                onToggleDone={() =>
+                  handleToggleQuestionDone(question.id, question.is_done)
+                }
+                isTogglingDone={questionItemStatus[question.id] === "loading"}
+                onOpenSaveModal={() => openSaveModal(question.id)}
+              />
+            ))
+          : status === "succeeded" && (
+              <p className="text-muted-foreground">
+                No specific questions were extracted from this post.
+              </p>
+            )}
+
+        {selectedQuestionIdForSave && (
+          <SaveToListModal
+            isOpen={isSaveModalOpen}
+            onOpenChange={(open) => {
+              setIsSaveModalOpen(open);
+              if (!open) {
+                // Reset interaction statuses when modal closes
+                setListInteractionStatus({});
+                setSelectedQuestionIdForSave(null);
+              }
+            }}
+            questionId={selectedQuestionIdForSave}
+            onQuestionListUpdate={handleQuestionListUpdate}
+            listInteractionStatus={listInteractionStatus}
+            listsContainingQuestion={listsContainingSelectedQuestion} // Pass this down
+          />
         )}
       </div>
     </div>
   );
 }
-
-// Re-styled QuestionCard slightly for better appearance within the post detail page
-const QuestionCard: React.FC<{ question: PostResponse["questions"][0] }> = ({
-  question,
-}) => {
-  return (
-    <div className="p-4 border rounded-xl shadow-sm space-y-3 bg-card text-card-foreground">
-      <h3 className="text-lg flex items-start gap-2">
-        <CircleHelp size={45} className="flex-shrink-0 mt-1" />
-        <div className="flex flex-col">
-          <MarkdownFormatter markdown={question.question_text} />
-        </div>
-      </h3>
-      {/* Displaying relevant question metadata */}
-      <div className="flex gap-2">
-        {question.role && question.role != "N/A" && (
-          <p className="text-sm flex items-center text-muted-foreground">
-            {question.role && (
-              <Badge variant="secondary">
-                <Briefcase size={12} className="mr-1" />
-                {question.role}
-              </Badge>
-            )}
-          </p>
-        )}
-
-        {question.companies.length > 0 && (
-          <p className="text-sm flex items-center text-muted-foreground">
-            {question.companies.length > 0 && question.companies[0].name && (
-              <Badge variant="secondary">
-                <Building2 size={12} className="mr-1" />
-                {question.companies[0].name}
-              </Badge>
-            )}
-          </p>
-        )}
-
-        {question.tags && question.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {question.tags
-              .filter((tag) => tag != "N/A")
-              .map((tag, index) => (
-                <span
-                  key={index}
-                  className="px-2 py-0.5 rounded-md text-xs font-medium bg-secondary text-secondary-foreground" // Use secondary badge style
-                >
-                  {tag}
-                </span>
-              ))}
-          </div>
-        )}
-      </div>
-      {question.similar_questions && question.similar_questions.length > 0 && (
-        <div className="space-y-1 mt-3">
-          <p className="text-sm font-medium text-muted-foreground">
-            Similar Questions:
-          </p>
-          {question.similar_questions.map((similar, index) => (
-            // Ensure source is a valid URL if you're rendering it as a link
-            <Link
-              key={index} // Use index if similar.id might not be unique globally
-              href={similar.source} // Assuming source is a URL
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block text-xs hover:underline"
-            >
-              {similar.source}
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};

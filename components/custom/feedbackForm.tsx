@@ -65,7 +65,7 @@ export function FeedbackForm({
         setDescription("");
       })
       .catch((e) => {
-        // console.log("error", e);
+        console.error("Unable to send feedback", e);
       });
   };
 

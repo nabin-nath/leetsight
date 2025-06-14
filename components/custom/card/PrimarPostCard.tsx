@@ -1,19 +1,5 @@
-// components/ui/card/question-card.tsx
-"use client";
-import { useState } from "react";
-import {
-  Flame,
-  ExternalLink,
-  Briefcase,
-  Eye,
-  Building2,
-  ThumbsUp,
-  ThumbsDown,
-  FileSearch,
-} from "lucide-react";
-import Link from "next/link"; // For the "View Full Post" link
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Briefcase, Building2, Eye, FileSearch, Flame } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   RiThumbDownFill,
@@ -21,20 +7,6 @@ import {
   RiThumbUpFill,
   RiThumbUpLine,
 } from "react-icons/ri";
-
-// Reuse interfaces from page.tsx or define here if preferred
-interface SimilarQuestion {
-  source: string;
-  similarity_score: number;
-}
-
-interface ExtractedQuestion {
-  id: string;
-  question_text: string;
-  tags: string[];
-  role: string;
-  company_id: string;
-}
 
 interface Company {
   name: string;
@@ -57,7 +29,7 @@ interface QuestionCardProps {
   is_disliked: boolean;
 }
 
-const PrimaryQuestionCard = ({
+const PrimaryPostCard = ({
   topic_id,
   title,
   companies,
@@ -72,8 +44,6 @@ const PrimaryQuestionCard = ({
   is_liked,
   is_disliked,
 }: QuestionCardProps) => {
-  const [expanded, setExpanded] = useState(false);
-  const toggleExpand = () => setExpanded(!expanded);
   const router = useRouter();
 
   const handleClick = () => {
@@ -164,4 +134,4 @@ const PrimaryQuestionCard = ({
   );
 };
 
-export default PrimaryQuestionCard;
+export default PrimaryPostCard;

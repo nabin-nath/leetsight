@@ -1,24 +1,12 @@
 "use client";
 
-import * as React from "react";
 import {
-  ArrowUpCircleIcon,
-  MicroscopeIcon,
-  BarChartIcon,
-  CameraIcon,
-  ClipboardListIcon,
-  DatabaseIcon,
-  FileCodeIcon,
-  FileIcon,
-  FileTextIcon,
-  FolderIcon,
   HelpCircleIcon,
   LayoutDashboardIcon,
-  ListIcon,
-  SearchIcon,
-  SettingsIcon,
-  UsersIcon,
+  MicroscopeIcon,
+  ScrollText,
 } from "lucide-react";
+import * as React from "react";
 
 import { NavMain } from "@/components/ui/NavMain";
 import { NavSecondary } from "@/components/ui/NavSecondary";
@@ -40,6 +28,11 @@ const data = {
       title: "Dashboard",
       url: "/",
       icon: LayoutDashboardIcon,
+    },
+    {
+      title: "Lists",
+      url: "/lists",
+      icon: ScrollText,
     },
   ],
   navSecondary: [
